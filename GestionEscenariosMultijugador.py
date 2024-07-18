@@ -758,7 +758,7 @@ def drawScenario (multiScenario):
 
 # seleccionar el multi escenario que está a la vista
 def selectScenario():
-    global polys, selectedScenario, numPlayers
+    global polys, selectedMultiScenario, numPlayers
     # limpio el mapa
     for poly in polys:
         poly.delete()
@@ -778,7 +778,7 @@ def sendScenario ():
     global altitudes
 
     for i in range (0,len(swarm)):
-        swarm[i].setScenario(selectedScenario['scenarios'][i]['scenario'])
+        swarm[i].setScenario(selectedMultiScenario['scenarios'][i]['scenario'])
 
     sendBtn['bg'] = 'green'
 
