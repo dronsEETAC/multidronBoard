@@ -218,12 +218,13 @@ class ParameterManager:
                                             tickinterval=2,
                                             orient=tk.HORIZONTAL)
         self.FENCE_ALT_MAX_Sldr.grid(row=5, column=0, columnspan=2, padx=5, pady=3, sticky=tk.N + tk.S + tk.E + tk.W)
-
+        # este parámetro es el que determina la acción que se realiza al colocar el swith de los modos de vuelo de la emisora
+        # en la posición inferior
         tk.Label(self.managementFrame, text='FLTMODE6') \
             .grid(row=6, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
         self.switch_action_options = ["Land", "RTL"]
         self.switch_action_option = tk.StringVar(self.managementFrame)
-        self.fence_action_option.set("Land")
+        self.switch_action_option.set("Land")
         self.switch_action_option_menu = tk.OptionMenu(self.managementFrame, self.switch_action_option,
                                                       *self.switch_action_options)
         self.switch_action_option_menu.grid(row=6, column=1, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
@@ -310,10 +311,10 @@ class ParameterManager:
             {'ID': "RTL_ALT", 'Value': float(self.RTL_ALT_Sldr.get()*100)},
             {'ID': "FENCE_MARGIN", 'Value': float(self.FENCE_MARGIN_Sldr.get())},
             {'ID': "FENCE_ALT_MAX", 'Value': float(self.FENCE_ALT_MAX_Sldr.get())},
-            {'ID': "FLTMODE6", 'Value': switch_option}
+            {'ID': "FLTMODE6", 'Value': float(switch_option)}
         ]
         self.swarm[self.pos].setParams(parameters)
-        messagebox.showinfo("showinfo", "Parámetros enviados")
+        messagebox.showinfo( "showinfo", "Parámetros enviados", parent=self.window)
 
     # copio los valores de los parámetros del dron primero en todos los demás
     def copy_params (self):
