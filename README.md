@@ -1,5 +1,5 @@
 https://kinolien.github.io/gitzip/
-para descargar la libreria
+para descargar la libreria dronLink
 
 hay que instalar:    
 pymavlink     
