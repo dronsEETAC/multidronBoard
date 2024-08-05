@@ -1,4 +1,6 @@
 import json
+import math
+import threading
 import tkinter as tk
 import os
 from tkinter import ttk
@@ -11,6 +13,9 @@ from PIL import Image, ImageTk
 import pyautogui
 import win32gui
 import glob
+
+import paho.mqtt.client as mqtt
+
 from dronLink.Dron import Dron
 import geopy.distance
 from geographiclib.geodesic import Geodesic
@@ -177,6 +182,7 @@ class ParameterManager:
         self.managementFrame.rowconfigure(6, weight=1)
         self.managementFrame.rowconfigure(7, weight=1)
         self.managementFrame.rowconfigure(8, weight=1)
+        self.managementFrame.rowconfigure(9, weight=1)
 
 
         self.managementFrame.columnconfigure(0, weight=1)
@@ -229,22 +235,29 @@ class ParameterManager:
                                                       *self.switch_action_options)
         self.switch_action_option_menu.grid(row=6, column=1, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
 
+        self.NAV_SPEED_Sldr = tk.Scale(self.managementFrame, label="NAV_SPEED", resolution=1, from_=1,
+                                            to=10,
+                                            tickinterval=1,
+                                            orient=tk.HORIZONTAL)
+        self.NAV_SPEED_Sldr.grid(row=7, column=0, columnspan=2, padx=5, pady=3, sticky=tk.N + tk.S + tk.E + tk.W)
+
+
         # acciones que quiero poder hacer con los parámetros
         # leer los valores que tiene el dron en ese momento
         tk.Button(self.managementFrame, text='Leer valores', bg="dark orange", command=self.read_params) \
-            .grid(row=7, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            .grid(row=8, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
         # enviar al dron los valores que he seleccionado
         tk.Button(self.managementFrame, text='Enviar valores', bg="dark orange", command=self.write_params) \
-            .grid(row=7, column=1, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            .grid(row=8, column=1, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
         # en el caso del primer dron quiero poder copiar sus valores en todos los demás
         if pos == 0:
             tk.Button(self.managementFrame, text='Copiar valores en todos los drones', bg="dark orange",
                       command=self.copy_params) \
-                .grid(row=8, column=0, columnspan=2, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+                .grid(row=9, column=0, columnspan=2, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
         else:
             # en el respo de los casos simplemente pongo un botón invisible para que se vean todos los managers alineados
             b = tk.Button(self.managementFrame, state=tk.DISABLED, bd=0)
-            b.grid(row=8, column=0, columnspan=2, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            b.grid(row=9, column=0, columnspan=2, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
 
     # Esto se activa si pulso el boton de activar/desactivar el geofence
     def on_off_btnClick (self):
@@ -297,6 +310,7 @@ class ParameterManager:
             self.on_off = 1
             self.on_offBtn['text'] = 'ON'
             self.on_offBtn['bg'] = 'green'
+        self.NAV_SPEED_Sldr.set (self.swarm[self.pos].navSpeed)
     # escribo en el dron los valores seleccionados
     def write_params (self):
         if self.switch_action_option.get () == 'Land':
@@ -314,6 +328,7 @@ class ParameterManager:
             {'ID': "FLTMODE6", 'Value': float(switch_option)}
         ]
         self.swarm[self.pos].setParams(parameters)
+        self.swarm[self.pos].navSpeed = float(self.NAV_SPEED_Sldr.get())
         messagebox.showinfo( "showinfo", "Parámetros enviados", parent=self.window)
 
     # copio los valores de los parámetros del dron primero en todos los demás
@@ -328,11 +343,30 @@ class ParameterManager:
             dronManager.FENCE_ALT_MAX_Sldr.set(self.FENCE_ALT_MAX_Sldr.get())
             dronManager.fence_action_option.set(self.fence_action_option.get())
             dronManager.switch_action_option.set(self.switch_action_option.get())
+            dronManager.NAV_SPEED_Sldr.set(self.NAV_SPEED_Sldr.get())
 
             dronManager.on_off =  self.on_off
             dronManager.on_offBtn['text'] = self.on_offBtn['text']
             dronManager.on_offBtn['bg'] =  self.on_offBtn['bg']
 
+def haversine(lat1, lon1, lat2, lon2):
+    # Radio de la Tierra en metros
+    R = 6371000
+
+    # Convertir grados a radianes
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    # Fórmula del Haversine
+    a = math.sin(delta_phi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    # Distancia en metros
+    distance = R * c
+
+    return distance
 
 # procesado de los datos de telemetría
 def processTelemetryInfo (id, telemetry_info):
@@ -351,6 +385,22 @@ def processTelemetryInfo (id, telemetry_info):
         dronIcons[id].set_position(lat,lon)
     # actrualizo la altitud
     altitudes[id]['text'] = str (round(alt,2))
+
+    # dejo rastro si debo hacerlo y guardo el marcador en la lista correspondiente al dron,
+    # para luego poder borrarlo si así lo pide el jugador. También necesitare la posición del marcador
+    if drawingAction[id] == 'draw':
+        marker = map_widget.set_marker(lat, lon,
+                              icon=dronLittlePictures[id], icon_anchor="center")
+        traces[id].append({'pos': (lat,lon), 'marker': marker})
+    elif drawingAction [id] == 'remove':
+        for item in traces[id]:
+            # elimino de la lista de trazas todas las que están a menos de un metro de la posición del dron
+            center = item['pos']
+            if haversine (center[0], center[1], lat, lon) < 1:
+                traces[id].remove(item)
+                item['marker'].delete()
+
+
 
 ########## Funciones para la creación de multi escenarios #################################
 
@@ -950,6 +1000,7 @@ def connect ():
         for i in range(0, numPlayers):
             # identificamos el dron
             dron = Dron(i)
+            dron.changeNavSpeed(1) # que vuele a 1 m/s
             swarm.append(dron)
             # nos conectamos
             dron.connect(connectionStrings[i], baud)
@@ -1015,6 +1066,115 @@ def adjustParameters ():
 
     parameterManagementWindow.mainloop()
 
+def showQR():
+    global QRimg
+    QRWindow = tk.Toplevel()
+    QRWindow.title("Código QR para mobile web app")
+    QRWindow.rowconfigure(0, weight=1)
+    QRWindow.rowconfigure(1, weight=1)
+    QRWindow.columnconfigure(0, weight=1)
+
+    QRimg = Image.open("images/QR.png")
+    QRimg = ImageTk.PhotoImage(QRimg)
+    label = tk.Label(QRWindow, image=QRimg)
+    label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.N + tk.E +tk.S+ tk.W)
+
+    closeBtn = tk.Button(QRWindow, text="Cerrar", bg="dark orange", command = lambda: QRWindow.destroy())
+    closeBtn.grid(row=1, column=0, padx=5, pady=5, sticky=tk.N + tk.E +tk.S+tk.W)
+
+    QRWindow.mainloop()
+
+
+
+
+
+
+
+def on_connect(client, userdata, flags, rc):
+    if rc == 0:
+        print("connected OK Returned code=", rc)
+    else:
+        print("Bad connection Returned code=", rc)
+
+def publish_event (id, event):
+    # al ser drones idenificados dronLink nos pasa siempre en primer lugar el identificador
+    # del dron que ha hecho la operación
+    # lo necesito para identificar qué jugador debe hacer caso a la respuesta
+    global client
+    client.publish('multiPlayerDash/mobileApp/'+event+'/'+str(id))
+
+# aqui recibimos las publicaciones que hacen las web apps desde las que están jugando
+def on_message(client, userdata, message):
+    # el formato del topic siempre será:
+    # multiPlayerDash/mobileApp/COMANDO/NUMERO
+    # el número normalmente será el número del jugador (entre el 0 y el 3)
+    # excepto en el caso de la petición de conexión
+    global playersCount
+    parts = message.topic.split ('/')
+    command = parts[2]
+    if command == 'connect':
+        # el cuarto trozo del topic es un número aleatorio que debo incluir en la respuesta
+        # para que ésta sea tenida en cuenta solo por el jugador que ha hecho la petición
+        randomId = parts[3]
+        if playersCount == numPlayers:
+            # ya no hay sitio para más jugadores
+            client.publish('multiPlayerDash/mobileApp/notAccepted/'+randomId)
+        else:
+            # aceptamos y le asignamos el identificador del siguiente jugador
+            client.publish('multiPlayerDash/mobileApp/accepted/'+randomId, playersCount)
+            playersCount = playersCount+1
+
+    if command == 'arm_takeOff':
+        # en este comando y en los siguientes, el último trozo del topic identifica al jugador que hace la petición
+        id = int (parts[3])
+        dron = swarm[id]
+        if dron.state == 'connected':
+            dron.arm()
+            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
+            dron.takeOff(5, blocking=False, callback=publish_event, params='flying')
+
+    if command == 'go':
+        id = int (parts[3])
+        dron = swarm[id]
+        if dron.state == 'flying':
+            direction = message.payload.decode("utf-8")
+            dron.go(direction)
+
+    if command == 'Land':
+        id = int (parts[3])
+        dron = swarm[id]
+        if dron.state == 'flying':
+            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
+            dron.Land(blocking=False, callback=publish_event, params='landed')
+
+    if command == 'RTL':
+        id = int (parts[3])
+        dron = swarm[id]
+        if dron.state == 'flying':
+            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
+            dron.RTL(blocking=False, callback=publish_event, params='atHome')
+
+    if command == 'startDrawing':
+        id = int (parts[3])
+        drawingAction [id] = 'draw'
+
+    if command == 'stopDrawing':
+        id = int (parts[3])
+        drawingAction [id] = 'nothing'
+
+    if command == 'startRemovingDrawing':
+        id = int (parts[3])
+        drawingAction[id] = 'remove'
+
+    if command == 'stopRemovingDrawing':
+        id = int (parts[3])
+        drawingAction[id] = 'nothing'
+    if command == 'removeAll':
+        id = int(parts[3])
+        for item in traces[id]:
+            item['marker'].delete()
+        traces[id] = []
+
 
 
 def crear_ventana():
@@ -1030,8 +1190,18 @@ def crear_ventana():
     global selectPlayersFrame
     global red, blue, green, yellow, black, dronPictures
     global connectOption
+    global playersCount
+    global client
+    global drawingAction, traces, dronLittlePictures
+    global QRimg
+
+    playersCount = 0
 
     connected = False
+    # aqui indicare, para cada dron, si estamos pintando o no
+    drawingAction = ['nothing']*4 # nothing, draw o remove
+    # y aqui ire guardando los rastros
+    traces = [[]]*4
 
     # para guardar datos y luego poder borrarlos
     paths = []
@@ -1232,12 +1402,12 @@ def crear_ventana():
     # superviseFrame.grid(row=1, column=0,  columnspan=3, padx=5, pady=5, sticky=tk.N + tk.S + tk.E + tk.W)
 
     superviseFrame.rowconfigure(0, weight=1)
-    selectFrame.rowconfigure(1, weight=1)
-    selectFrame.rowconfigure(2, weight=1)
-    selectFrame.rowconfigure(3, weight=1)
-    selectFrame.rowconfigure(4, weight=1)
-    selectFrame.rowconfigure(5, weight=1)
-    selectFrame.rowconfigure(6, weight=1)
+    superviseFrame.rowconfigure(1, weight=1)
+    superviseFrame.rowconfigure(2, weight=1)
+    superviseFrame.rowconfigure(3, weight=1)
+    superviseFrame.rowconfigure(4, weight=1)
+    superviseFrame.rowconfigure(5, weight=1)
+
     superviseFrame.columnconfigure(0, weight=1)
     superviseFrame.columnconfigure(1, weight=1)
     superviseFrame.columnconfigure(2, weight=1)
@@ -1253,6 +1423,9 @@ def crear_ventana():
     # las colocaremos cuando sepamos cuántos drones tenemos en el enjambre
     tk.Label(superviseFrame, text='Altitudes') \
         .grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+    showQRBtn = tk.Button(superviseFrame, text="Mostrar código QR de mobile web APP", bg="dark orange", command=showQR)
+    showQRBtn.grid(row=5, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
     #################### Frame para el mapa, en la columna de la derecha #####################
     mapaFrame = tk.LabelFrame(ventana, text='Mapa')
@@ -1276,26 +1449,63 @@ def crear_ventana():
 
     # ahora cargamos las imagenes de los iconos que vamos a usar
 
-    # icono para marcadores
+    # iconos para representar cada dron (circulo de color) y para marcar su rastro (círculo más pequeño del mismo color)
     im = Image.open("images/red.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     red = ImageTk.PhotoImage(im_resized)
+    im_resized_plus = im.resize((10, 10), Image.LANCZOS)
+    littleRed = ImageTk.PhotoImage(im_resized_plus)
+
     im = Image.open("images/blue.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     blue = ImageTk.PhotoImage(im_resized)
+    im_resized_plus = im.resize((10, 10), Image.LANCZOS)
+    littleBlue = ImageTk.PhotoImage(im_resized_plus)
+
     im = Image.open("images/green.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     green = ImageTk.PhotoImage(im_resized)
+    im_resized_plus = im.resize((10, 10), Image.LANCZOS)
+    littleGreen = ImageTk.PhotoImage(im_resized_plus)
+
 
     im = Image.open("images/yellow.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     yellow = ImageTk.PhotoImage(im_resized)
+    im_resized_plus = im.resize((10, 10), Image.LANCZOS)
+    littleYellow = ImageTk.PhotoImage(im_resized_plus)
+
 
     im = Image.open("images/black.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     black = ImageTk.PhotoImage(im_resized)
 
     dronPictures = [red, blue, green, yellow]
+    # para dibujar los rastros
+    dronLittlePictures = [littleRed, littleBlue, littleGreen, littleYellow]
+
+    # nos conectamos al broker para recibir las ordenes de los que vuelan con la web app
+    client = mqtt.Client("multiPlayerDash",transport="websockets")
+
+
+    broker_address = "dronseetac.upc.edu"
+    broker_port = 8000
+
+    client.username_pw_set(
+        'dronsEETAC', 'mimara1456.'
+    )
+    print('me voy a conectar')
+    client.connect(broker_address, broker_port )
+    print('Connected to dronseetac.upc.edu:8000')
+
+    client.on_message = on_message
+    client.on_connect = on_connect
+    client.connect(broker_address, broker_port)
+
+    # me subscribo a cualquier mensaje  que venga del autopilot service
+    client.subscribe('mobileApp/multiPlayerDash/#')
+    client.loop_start()
+
 
     return ventana
 

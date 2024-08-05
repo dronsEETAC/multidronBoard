@@ -7,3 +7,4 @@ tkintermapview
 PyAutoGUI
 geopy
 pyserial
+paho-mqtt (version 1.6.1)
