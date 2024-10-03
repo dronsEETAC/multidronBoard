@@ -267,7 +267,7 @@ def _setScenario(self, scenario, callback=None, params = None):
                     mavutil.mavlink.MAV_MISSION_TYPE_FENCE,
                 ))
                 seq += 1
-
+    print ('voy a enviar count')
     # indicamos el número total de comandos que tenemos que enviar para crear el escenario
     self.vehicle.mav.mission_count_send(
         self.vehicle.target_system,
@@ -276,6 +276,7 @@ def _setScenario(self, scenario, callback=None, params = None):
         mission_type=mavutil.mavlink.MAV_MISSION_TYPE_FENCE
     )
     arm_msg = self.vehicle.recv_match(type='COMMAND_ACK', blocking=True, timeout=3)
+    print ('voy a enviar comandos')
     # ahora enviamos los comandos
     while True:
         # esperamos a que nos pida el siguiente
@@ -286,9 +287,9 @@ def _setScenario(self, scenario, callback=None, params = None):
             # ya los hemos enviado todos
             break
 
-    msg = self.vehicle.recv_match(type='MISSION_ACK', blocking=True)
+    msg = self.vehicle.recv_match(type='MISSION_ACK', blocking=True, timeout=3)
 
-
+    print ('ya he enviado el escenario')
     if callback != None:
         if self.id == None:
             if params == None:

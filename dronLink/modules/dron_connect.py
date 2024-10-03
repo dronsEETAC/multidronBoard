@@ -1,4 +1,4 @@
-
+import math
 import threading
 import time
 
@@ -6,21 +6,79 @@ from pymavlink import mavutil
 
 ''' Esta función sirve exclusivamente para detectar cuándo el dron se desarma porque 
 ha pasado mucho tiempo desde que se armó sin despegar'''
-def _handle_heartbeat(self):
+
+def _handle_heartbeat2(self):
     while self.state != 'disconnected':
         msg = self.vehicle.recv_match(type='HEARTBEAT', blocking=False)
         if msg:
             if msg.base_mode == 89 and self.state == 'armed':
                 self.state = 'connected'
+            mode = mavutil.mode_string_v10(msg)
+            if not 'Mode(0x000000' in str(mode):
+                self.flightMode = mode
+                
+        time.sleep (0.25)
 
-        time.sleep (1)
+def _handle_heartbeat(self):
+    while self.state != 'disconnected':
+        if self.takeTelemetry:
+            msg = self.vehicle.recv_match(
+                type='HEARTBEAT', blocking=True, timeout = 3)
+            if msg:
+                if msg.base_mode == 89 and self.state == 'armed' :
+                    self.state = 'connected'
+                mode =mavutil.mode_string_v10(msg)
+                if not 'Mode(0x000000' in str (mode):
+                    self.flightMode = mode
+        time.sleep (0.25)
 
+
+def _record_telemetry_info(self):
+    self.alt = 0
+    while self.state != 'disconnected':
+        if self.takeTelemetry:
+
+            msg = self.vehicle.recv_match(type='GLOBAL_POSITION_INT', blocking= True, timeout = 3)
+            if msg:
+                msg = msg.to_dict()
+                # recojo los datos que me interesan
+                self.lat = float(msg['lat'] / 10 ** 7)
+                self.lon = float(msg['lon'] / 10 ** 7)
+                self.alt = float(msg['relative_alt']/1000)
+                self.heading = float(msg['hdg'] / 100)
+                # por si volamos el dron con la emisora y no hemos pasado por
+                # los métodos de arm y takeoff
+                if self.state == 'connected' and self.alt > 0.5:
+                    self.state = 'flying'
+                if self.state == 'flying' and self.alt < 0.5:
+                    self.state = 'connected'
+
+                vx =  float(msg['vx'])
+                vy = float(msg['vy'])
+                self.groundSpeed = math.sqrt( vx*vx+vy*vy)/100
+        time.sleep(1/self.frequency)
+
+
+def _record_local_telemetry_info(self):
+    while self.state != 'disconnected':
+        if self.takeTelemetry:
+            msg = self.vehicle.recv_match(type='LOCAL_POSITION_NED', blocking=True, timeout = 3)
+            if msg:
+                # La posición viene en formato NED, es decir:
+                #   msg.x indica el desplazamiento hacia el norte desde el home (o hacia el sur
+                #   si es un valor negativo
+                #   msg.y es el desplazamiento hacia el Este (u oeste si el número es negativo)
+                #   msg.z es el desplazamiento hacia abajo (down) o hacia arriga si es negativo
+
+                self.position = [msg.x, msg.y, msg.z]
+        time.sleep (1/self.frequency)
 
 
 def _connect(self, connection_string, baud, callback=None, params=None):
     self.vehicle = mavutil.mavlink_connection(connection_string, baud)
     self.vehicle.wait_heartbeat()
     self.state = "connected"
+    self.takeTelemetry = True
     # pongo en marcha el thread para detectar el desarmado por innacción
     handleThread = threading.Thread (target = self._handle_heartbeat)
     handleThread.start()
@@ -43,13 +101,13 @@ def _connect(self, connection_string, baud, callback=None, params=None):
         0, 0, 0, 0,  # Unused parameters
         0
     )
-    # compruebo si el dron está ya en el aire
-    msg = self.vehicle.recv_match(type='GLOBAL_POSITION_INT', blocking=True, timeout=3)
-    if msg:
-        msg = msg.to_dict()
-        self.alt = float(msg['relative_alt'] / 1000)
-        if self.alt > 0.5:
-            self.state = 'flying'
+    # pongo en marcha el thread para registrar los datos de telemetria
+    telemetryInfoThread = threading.Thread (target = self._record_telemetry_info)
+    telemetryInfoThread.start()
+
+    # pongo en marcha el thread para registrar los datos de telemetria local
+    localTelemetryInfoThread = threading.Thread (target = self._record_local_telemetry_info)
+    localTelemetryInfoThread.start()
 
     if callback != None:
         if self.id == None:
@@ -75,6 +133,7 @@ def connect(self,
         self.frequency = freq
         if blocking:
             self._connect(connection_string, baud)
+            print ('ya estoy conectado')
         else:
             connectThread = threading.Thread(target=self._connect, args=[connection_string, baud, callback, params, ])
             connectThread.start()
