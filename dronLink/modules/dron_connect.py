@@ -125,7 +125,7 @@ def _connect(self, connection_string, baud, callback=None, params=None):
 def connect(self,
             connection_string,
             baud,
-            freq = 4,
+            freq = 10,
             blocking=True,
             callback=None,
             params = None):

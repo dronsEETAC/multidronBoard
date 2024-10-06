@@ -372,8 +372,7 @@ def haversine(lat1, lon1, lat2, lon2):
 
 # procesado de los datos de telemetría
 def processTelemetryInfo (id, telemetry_info):
-    global dronIcons, colors, traces, lock
-    #lock.acquire()
+    global dronIcons
     # recupero la posición en la que está el dron
     lat = telemetry_info['lat']
     lon = telemetry_info['lon']
@@ -391,27 +390,19 @@ def processTelemetryInfo (id, telemetry_info):
 
     # dejo rastro si debo hacerlo y guardo el marcador en la lista correspondiente al dron,
     # para luego poder borrarlo si así lo pide el jugador. También necesitare la posición del marcador
-    if drawingAction[id] == 'startDrawing':
-        traces[id].append({'pos': (lat, lon), 'marker': None})
-        drawingAction[id] = 'draw'
-    elif drawingAction[id] == 'draw':
-            last = len(traces[id]) -1
-            if last >= 0:
-                coords = traces[id][last]['pos']
-
-                marker = map_widget.set_path([(lat, lon), coords], color=colors[id], width=6)
-                traces[id].append({'pos': (lat,lon), 'marker': marker})
+    if drawingAction[id] == 'draw':
+        marker = map_widget.set_marker(lat, lon,
+                              icon=dronLittlePictures[id], icon_anchor="center")
+        traces[id].append({'pos': (lat,lon), 'marker': marker})
     elif drawingAction [id] == 'remove':
         for item in traces[id]:
             # elimino de la lista de trazas todas las que están a menos de un metro de la posición del dron
             center = item['pos']
             if haversine (center[0], center[1], lat, lon) < 1:
                 traces[id].remove(item)
-                # la primera traza no tiene marker, asi que no puedo borrar la linea
-                if  item['marker'] != None:
-                    item['marker'].delete()
+                item['marker'].delete()
 
-    #lock.release()
+
 
 ########## Funciones para la creación de multi escenarios #################################
 
@@ -601,13 +592,14 @@ def registerScenario ():
     global multiScenario
 
     # voy a guardar el multi escenario en el fichero con el nombre indicado en el momento de la creación
-    jsonFilename = 'multiScenarios/' + name.get() + "_"+str(numPlayers)+".json"
+    jsonFilename = 'escenariosControladores/' + name.get() + "_"+str(numPlayers)+".json"
+    print ("**** ",multiScenario)
 
     with open(jsonFilename, 'w') as f:
         json.dump(multiScenario, f)
     # aqui capturo el contenido de la ventana que muestra el Camp Nou (zona del cesped, que es dónde está el escenario)
     im = screenshot('Gestión de escenarios')
-    imageFilename = 'multiScenarios/'+name.get()+ "_"+str(numPlayers)+".png"
+    imageFilename = 'escenariosControladores/'+name.get()+ "_"+str(numPlayers)+".png"
     im.save(imageFilename)
     multiScenario = []
     # limpio el mapa
@@ -921,75 +913,82 @@ def createPlayer (color):
                     'scenario': scenario
                 })
 
+def defineLimits ():
+    pass
+
+def createAreaForPlayer (n):
+    pass
 # elijo el número de jugadores
 def selectNumPlayers (num):
     global redPlayerBtn, bluePlayerBtn, greenPlayerBtn, yellowPlayerBtn
-    global multiScenario
+    global escenarioControladores
     global numPlayers
     numPlayers = num
     # empezamos a preparar la estructura de datos del multi escenario
-    multiScenario = {
+    escenarioControladores = {
         'numPlayers': num,  # numero de jugadores
-        'scenarios': []     # un escenario para cada jugador
+        'limits': [],       # limites del escenario (geofence de inclusion
+        'areas': [],        # areas para num-1 jugadores (el area del ultimo es lo que quede sin cubrir)
+        'obstacles': []     # geofences de exclusion
     }
     # colocamos los botones que permiten crear el escenario para cada uno de los jugadores
+    limitsBtn = tk.Button(selectPlayersFrame, text="Marca los límites del escenario", bg="red", fg='white',
+                             command=lambda: defineLimits)
+    limitsBtn.grid(row=2, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
     if num == 1:
-        redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red", fg = 'white',
-                                 command=lambda: createPlayer('red'))
-        redPlayerBtn.grid(row=2, column=0, columnspan = 4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        pass
     if num == 2:
         redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red", fg='white',
                                 command = lambda: createPlayer('red'))
-        redPlayerBtn.grid(row=2, column=0, columnspan = 4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        redPlayerBtn.grid(row=3, column=0, columnspan = 4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        createAreaForPlayer(2)
 
-        bluePlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador azul", bg="blue", fg='white',
-                                command = lambda: createPlayer('blue'))
-        bluePlayerBtn.grid(row=3, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
     if num == 3:
         redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red",
                                  fg='white',
                                  command=lambda: createPlayer('red'))
-        redPlayerBtn.grid(row=2, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        redPlayerBtn.grid(row=3, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
         bluePlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador azul", bg="blue",
                                   fg='white',
                                   command=lambda: createPlayer('blue'))
-        bluePlayerBtn.grid(row=3, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-        greenPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador verde", bg="green", fg='white',
-                                command = lambda: createPlayer('green'))
-        greenPlayerBtn.grid(row=4, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        bluePlayerBtn.grid(row=4, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        createAreaForPlayer(3)
 
     if num == 4:
         redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red",
                                  fg='white',
                                  command=lambda: createPlayer('red'))
-        redPlayerBtn.grid(row=2, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        redPlayerBtn.grid(row=3, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
         bluePlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador azul", bg="blue",
                                   fg='white',
                                   command=lambda: createPlayer('blue'))
-        bluePlayerBtn.grid(row=3, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        bluePlayerBtn.grid(row=4, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
         greenPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador verde", bg="green",
                                    fg='white',
                                    command=lambda: createPlayer('green'))
-        greenPlayerBtn.grid(row=4, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        greenPlayerBtn.grid(row=5, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        createAreaForPlayer (4)
 
-        yellowPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador amarillo", bg="yellow", fg='black',
+        '''yellowPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador amarillo", bg="yellow", fg='black',
                                 command = lambda: createPlayer('yellow'))
-        yellowPlayerBtn.grid(row=5, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        yellowPlayerBtn.grid(row=5, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)'''
 
 # me contecto a los drones del enjambre
 def connect ():
     global swarm
     global connected, dron, dronIcons
-    global altitudes
+    global altitudes, numPlayers
+    numPlayers = 1
 
     if not connected:
 
         if connectOption.get () == 'Simulation':
-            # nos conectaremos a los simuladores de los drones
+            # nos al simulador
             connectionStrings = []
             base = 5763
+
             for i in range(0, numPlayers):
                 port = base + i * 10
                 connectionStrings.append('tcp:127.0.0.1:' + str(port))
@@ -1169,7 +1168,7 @@ def on_message(client, userdata, message):
 
     if command == 'startDrawing':
         id = int (parts[3])
-        drawingAction [id] = 'startDrawing'
+        drawingAction [id] = 'draw'
 
     if command == 'stopDrawing':
         id = int (parts[3])
@@ -1185,8 +1184,7 @@ def on_message(client, userdata, message):
     if command == 'removeAll':
         id = int(parts[3])
         for item in traces[id]:
-            if  item['marker'] != None:
-                item['marker'].delete()
+            item['marker'].delete()
         traces[id] = []
 
 
@@ -1208,8 +1206,6 @@ def crear_ventana():
     global client
     global drawingAction, traces, dronLittlePictures
     global QRimg
-    global colors
-    global lock
 
     playersCount = 0
 
@@ -1217,7 +1213,7 @@ def crear_ventana():
     # aqui indicare, para cada dron, si estamos pintando o no
     drawingAction = ['nothing']*4 # nothing, draw o remove
     # y aqui ire guardando los rastros
-    traces = [[], [], [], []]
+    traces = [[]]*4
 
     # para guardar datos y luego poder borrarlos
     paths = []
@@ -1497,7 +1493,6 @@ def crear_ventana():
     black = ImageTk.PhotoImage(im_resized)
 
     dronPictures = [red, blue, green, yellow]
-    colors =['red', 'blue', 'green', 'yellow']
     # para dibujar los rastros
     dronLittlePictures = [littleRed, littleBlue, littleGreen, littleYellow]
 
@@ -1523,8 +1518,7 @@ def crear_ventana():
     # me subscribo a cualquier mensaje  que venga del autopilot service
     client.subscribe('mobileApp/multiPlayerDash/#')
     client.loop_start()
-    # para garantizar acceso excluyente a las estructuras para pintar el rastro
-    lock = threading.Lock()
+
 
     return ventana
 
