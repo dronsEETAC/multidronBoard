@@ -6,6 +6,7 @@ def informar ():
     global dron
     print ('Comprueba ahora con Mission Planner que se ha cargado el escenario:\n'
            'un polígono de inclusion, y dos polígonos y un circulo de exclusión')
+    print ('voy a pedir el escenario')
     scenario = dron.getScenario()
     print ('Este es el escenario que hay en este momento en el autopiloto')
     print (json.dumps(scenario, indent = 1))
@@ -15,6 +16,7 @@ dron = Dron ()
 connection_string = 'tcp:127.0.0.1:5763'
 baud = 115200
 dron.connect(connection_string, baud)
+print ('conectado')
 #dron.getGEOFence()
 scenario = [
      {
@@ -42,6 +44,7 @@ scenario = [
              {'lat': 41.2762281, 'lon': 1.9884771}
          ]
      },
+
      {
          'type': 'circle',
          'radius': 2,

@@ -373,11 +373,11 @@ def haversine(lat1, lon1, lat2, lon2):
 # procesado de los datos de telemetría
 def processTelemetryInfo (id, telemetry_info):
     global dronIcons, colors, traces, lock
-    #lock.acquire()
     # recupero la posición en la que está el dron
     lat = telemetry_info['lat']
     lon = telemetry_info['lon']
     alt = telemetry_info['alt']
+    modo = telemetry_info['flightMode']
 
     # si es el primer paquete de este dron entonces ponemos en el mapa el icono de ese dron
     if not dronIcons[id]:
@@ -388,6 +388,7 @@ def processTelemetryInfo (id, telemetry_info):
         dronIcons[id].set_position(lat,lon)
     # actrualizo la altitud
     altitudes[id]['text'] = str (round(alt,2))
+    modos[id]['text'] = modo
 
     # dejo rastro si debo hacerlo y guardo el marcador en la lista correspondiente al dron,
     # para luego poder borrarlo si así lo pide el jugador. También necesitare la posición del marcador
@@ -411,12 +412,11 @@ def processTelemetryInfo (id, telemetry_info):
                 if  item['marker'] != None:
                     item['marker'].delete()
 
-    #lock.release()
 
 ########## Funciones para la creación de multi escenarios #################################
 
 def createBtnClick ():
-    global scenario, polys, markers
+    global scenario
     scenario = []
     # limpiamos el mapa de los elementos que tenga
     clear()
@@ -982,7 +982,8 @@ def selectNumPlayers (num):
 def connect ():
     global swarm
     global connected, dron, dronIcons
-    global altitudes
+    global altitudes, modos
+    global telemetriaFrame, controlesFrama
 
     if not connected:
 
@@ -1003,10 +1004,12 @@ def connect ():
 
         colors = ['red', 'blue', 'green', 'yellow']
         altitudes = []
-
+        modos = []
         # creamos el enjambre
         swarm = []
         dronIcons = [None, None, None, None]
+
+        textColor = 'white'
 
         for i in range(0, numPlayers):
             # identificamos el dron
@@ -1017,13 +1020,23 @@ def connect ():
             print ('voy a onectar ', i, connectionStrings[i], baud)
             dron.connect(connectionStrings[i], baud)
             print ('conectado')
-            # colocamos los botones para aterrizar, cada uno con el color que toca
-            tk.Button(superviseFrame, bg=colors[i],
-                          command=lambda d=swarm[i]: d.Land(blocking=False)) \
+            if i == 3:
+                textColor = 'black'
+            # colocamos los botones para aterrizar y cambiar de modo, cada uno con el color que toca
+            tk.Button(controlesFrame, bg=colors[i], fg=textColor, text='Aterrizar',
+                      command=lambda d=swarm[i]: d.Land(blocking=False)) \
+                .grid(row=0, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            tk.Button(controlesFrame, bg=colors[i], fg=textColor, text='Modo guiado',
+                      command=lambda d=swarm[i]: d.setFlightMode('GUIDED')) \
+                .grid(row=1, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            tk.Button(controlesFrame, bg=colors[i], fg=textColor, text='Modo break',
+                      command=lambda d=swarm[i]: d.setFlightMode('BRAKE')) \
                 .grid(row=2, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
             # colocamos las labels para mostrar las alturas de los drones
-            altitudes.append(tk.Label(superviseFrame, text='', borderwidth=1, relief="solid"))
-            altitudes[-1].grid(row=4, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            altitudes.append(tk.Label(telemetriaFrame, text='', borderwidth=1, relief="solid"))
+            altitudes[-1].grid(row=0, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            modos.append(tk.Label(telemetriaFrame, text='', borderwidth=1, relief="solid"))
+            modos[-1].grid(row=1, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
             # solicitamos datos de telemetria del dron
             dron.send_telemetry_info(processTelemetryInfo)
 
@@ -1110,7 +1123,7 @@ def on_connect(client, userdata, flags, rc):
         print("Bad connection Returned code=", rc)
 
 def publish_event (id, event):
-    # al ser drones idenificados dronLink nos pasa siempre en primer lugar el identificador
+    # al ser drones idenificados dronLink_old nos pasa siempre en primer lugar el identificador
     # del dron que ha hecho la operación
     # lo necesito para identificar qué jugador debe hacer caso a la respuesta
     global client
@@ -1135,6 +1148,7 @@ def on_message(client, userdata, message):
         else:
             # aceptamos y le asignamos el identificador del siguiente jugador
             client.publish('multiPlayerDash/mobileApp/accepted/'+randomId, playersCount)
+            print ('se ha conectado el ', playersCount)
             playersCount = playersCount+1
 
     if command == 'arm_takeOff':
@@ -1210,7 +1224,7 @@ def crear_ventana():
     global QRimg
     global colors
     global lock
-
+    global telemetriaFrame, controlesFrame
     playersCount = 0
 
     connected = False
@@ -1421,8 +1435,7 @@ def crear_ventana():
     superviseFrame.rowconfigure(1, weight=1)
     superviseFrame.rowconfigure(2, weight=1)
     superviseFrame.rowconfigure(3, weight=1)
-    superviseFrame.rowconfigure(4, weight=1)
-    superviseFrame.rowconfigure(5, weight=1)
+
 
     superviseFrame.columnconfigure(0, weight=1)
     superviseFrame.columnconfigure(1, weight=1)
@@ -1433,15 +1446,30 @@ def crear_ventana():
     parametersBtn.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
     # debajo de este label colocaremos botones para aterrizar los drones.
     # los colocaremos cuando sepamos cuántos drones tenemos en el enjambre
-    tk.Label(superviseFrame, text='Aterrizar') \
-        .grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+    controlesFrame = tk.LabelFrame(superviseFrame, text='Controles')
+    controlesFrame.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    controlesFrame.rowconfigure(0, weight=1)
+    controlesFrame.rowconfigure(1, weight=1)
+    controlesFrame.rowconfigure(3, weight=1)
+    controlesFrame.columnconfigure(0, weight=1)
+    controlesFrame.columnconfigure(1, weight=1)
+    controlesFrame.columnconfigure(2, weight=1)
+    controlesFrame.columnconfigure(3, weight=1)
+
     # debajo de este label colocaremos las alturas en las que están los drones
     # las colocaremos cuando sepamos cuántos drones tenemos en el enjambre
-    tk.Label(superviseFrame, text='Altitudes') \
-        .grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    telemetriaFrame = tk.LabelFrame(superviseFrame, text='Telemetría (altitud y modo de vuelo')
+    telemetriaFrame.grid(row=2, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    telemetriaFrame.rowconfigure(0, weight=1)
+    telemetriaFrame.rowconfigure(1, weight=1)
+    telemetriaFrame.columnconfigure(0, weight=1)
+    telemetriaFrame.columnconfigure(1, weight=1)
+    telemetriaFrame.columnconfigure(2, weight=1)
+    telemetriaFrame.columnconfigure(3, weight=1)
 
     showQRBtn = tk.Button(superviseFrame, text="Mostrar código QR de mobile web APP", bg="dark orange", command=showQR)
-    showQRBtn.grid(row=5, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    showQRBtn.grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
     #################### Frame para el mapa, en la columna de la derecha #####################
     mapaFrame = tk.LabelFrame(ventana, text='Mapa')

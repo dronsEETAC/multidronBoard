@@ -1,6 +1,7 @@
 
 class Dron(object):
     def __init__(self, id = None):
+        print ("DronLink con Handlers")
         self.id = id
 
         self.state = "disconnected"
@@ -35,7 +36,8 @@ class Dron(object):
         self.lastDirection = None
         self.flightMode = None
         self.minAltGeofence = 0
-        self.takeTelemetry = False
+
+        self.message_handler = None
         # se usa para parar la captura de datos de telemetria para que no molesten cuando quiero
         # leer parámetros
 
@@ -47,12 +49,12 @@ class Dron(object):
     # Ese es el caso del atributo going, que lo tengo que declarar aqui y preferiría poder declararlo en el fichero dron_goto
 
     from dronLink.modules.dron_connect import connect, _connect, disconnect, _handle_heartbeat, _record_telemetry_info, _record_local_telemetry_info
-    from dronLink.modules.dron_arm import arm, _arm
-    from dronLink.modules.dron_takeOff import takeOff, _takeOff
-    from dronLink.modules.dron_RTL_Land import  RTL, Land, _goDown
-    from dronLink.modules.dron_nav import _prepare_command, go, _startGo, _stopGo, _goingTread, changeHeading, _changeHeading, unfixHeading, changeNavSpeed
+    from dronLink.modules.dron_arm import arm, _arm, setFlightMode
+    from dronLink.modules.dron_takeOff import takeOff, _takeOff, _checkAltitudeReached
+    from dronLink.modules.dron_RTL_Land import  RTL, Land, _goDown, _checkOnHearth
+    from dronLink.modules.dron_nav import _prepare_command, go, _startGo, _stopGo, _goingTread, changeHeading, _changeHeading, fixHeading, unfixHeading, changeNavSpeed, _checkHeadingReached
     from dronLink.modules.dron_goto import goto, _goto, _distanceToDestinationInMeters
-    from dronLink.modules.dron_parameters import getParams, _getParams, setParams, _setParams
+    from dronLink.modules.dron_parameters import getParams, _getParams, setParams, _setParams, _checkParameter
     from dronLink.modules.dron_geofence import  setScenario, _setScenario, getScenario, _getScenario, _buildScenario
     from dronLink.modules.dron_telemetry import send_telemetry_info, _send_telemetry_info, stop_sending_telemetry_info
 
@@ -60,5 +62,6 @@ class Dron(object):
     from dronLink.modules.dron_mission import executeMission, _executeMission, uploadMission, _uploadMission, _getMission, getMission
     from dronLink.modules.dron_altitude import change_altitude, _change_altitude
     from dronLink.modules.dron_drop import drop
-    from dronLink.modules.dron_move import move_distance, _move_distance, _prepare_command_mov,setMoveSpeed
+    from dronLink.modules.dron_move import move_distance, _move_distance, _prepare_command_mov,setMoveSpeed, _checkSpeedZero
     from dronLink.modules.dron_bottomGeofence  import startBottomGeofence, stopBottomGeofence,  _minAltChecking
+    from dronLink.modules.message_handler import MessageHandler

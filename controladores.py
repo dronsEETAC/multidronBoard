@@ -20,160 +20,128 @@ import paho.mqtt.client as mqtt
 from dronLink.Dron import Dron
 import geopy.distance
 from geographiclib.geodesic import Geodesic
-
+from shapely.geometry import Point
+from shapely.geometry.polygon import Polygon
 '''
-Ejemplo de estructura de datos que representa un escenario para múltiples jugadores (multi escenario).
-Los jugadores son el red, blue y green (el cuarto sería el yellow).
-Para cada jugador tenemos una lista de fences. El primero es el de inclusión, que puede ser un poligono o un círculo.
-El resto (si hay) son fences que representan obstáculos y pueden ser polígonos o círculos.
+Ejemplo de estructura de datos que representa un escenario para el juego de controladores.
+El campo 'limits' marca el geofence de inclusión.
+El campo 'areas' es un vector en el que cada elemento define el polígono asociado a uno de los 
+jugadores. Si hay n jugadores solo se definen n-1 areas porque el area para el ultimo jugador
+es la zona que queda libre en el geofence de inclusión.
+El campo 'obstacles' es un vector en el que cada elemento representa un obstaculo que puede ser
+un poligono o un circulo.
 
 {
   "numPlayers": 3,
-  "scenarios": [
+  "limits": [
+    [
+      41.27643116985451,
+      1.9882303287666048
+    ],
+    [
+      41.27661561304896,
+      1.9890162160079683
+    ],
+    [
+      41.2764029489919,
+      1.989096682278415
+    ],
+    [
+      41.27619230002484,
+      1.9883698036353792
+    ]
+  ],
+  "areas": [
+    [
+      [
+        41.27643116985451,
+        1.9882893373649324
+      ],
+      [
+        41.276482572108634,
+        1.9885186662357057
+      ],
+      [
+        41.27634140259836,
+        1.9885348028586236
+      ],
+      [
+        41.276271858212134,
+        1.9883604592726556
+      ]
+    ],
+    [
+      [
+        41.27648452269629,
+        1.9885374850676385
+      ],
+      [
+        41.276587327080016,
+        1.989010894958767
+      ],
+      [
+        41.27645831763141,
+        1.9890658802435723
+      ],
+      [
+        41.27634845782181,
+        1.9885401672766534
+      ]
+    ]
+  ],
+  "obstacles": [
     {
-      "player": "red",
-      "scenario": [
-        {
-          "type": "polygon",
-          "waypoints": [
-            {
-              "lat": 41.27644776935058,
-              "lon": 1.9882548704865997
-            },
-            {
-              "lat": 41.27656972362127,
-              "lon": 1.988883848500592
-            },
-            {
-              "lat": 41.27648304540272,
-              "lon": 1.9889368907028029
-            },
-            {
-              "lat": 41.276382256631756,
-              "lon": 1.9883025482707808
-            }
-          ]
-        },
-        {
-          "type": "polygon",
-          "waypoints": [
-            {
-              "lat": 41.276464903435425,
-              "lon": 1.9884165421539137
-            },
-            {
-              "lat": 41.27648304540272,
-              "lon": 1.9885359004550764
-            },
-            {
-              "lat": 41.27644776935058,
-              "lon": 1.9885399237685988
-            },
-            {
-              "lat": 41.27643063526124,
-              "lon": 1.9884500697665999
-            }
-          ]
-        }
+      "type": "polygon",
+      "waypoints": [
+        [
+          41.276364584043975,
+          1.9884033746168939
+        ],
+        [
+          41.276439167769645,
+          1.9884422666476098
+        ],
+        [
+          41.27640590747008,
+          1.9885844237253991
+        ],
+        [
+          41.27631620536554,
+          1.988538826172146
+        ]
       ]
     },
     {
-      "player": "blue",
-      "scenario": [
-        {
-          "type": "polygon",
-          "waypoints": [
-            {
-              "lat": 41.27635524622633,
-              "lon": 1.9883578031226534
-            },
-            {
-              "lat": 41.27645704292634,
-              "lon": 1.9889009504481692
-            },
-            {
-              "lat": 41.27635855031422,
-              "lon": 1.9888875394030947
-            },
-            {
-              "lat": 41.276282958606416,
-              "lon": 1.988344392077579
-            }
-          ]
-        },
-        {
-          "type": "circle",
-          "lat": 41.276362581869506,
-          "lon": 1.9885468988582033,
-          "radius": 2.669351637531348
-        }
-      ]
+      "type": "circle",
+      "lat": 41.27645227030725,
+      "lon": 1.9887453562662927,
+      "radius": 4.889039228138402
     },
     {
-      "player": "green",
-      "scenario": [
-        {
-          "type": "polygon",
-          "waypoints": [
-            {
-              "lat": 41.27657020663036,
-              "lon": 1.9889331369563479
-            },
-            {
-              "lat": 41.27659943530579,
-              "lon": 1.989017626540317
-            },
-            {
-              "lat": 41.276431118271354,
-              "lon": 1.9891021161242861
-            },
-            {
-              "lat": 41.27640692896127,
-              "lon": 1.9889894633456606
-            }
-          ]
-        },
-        {
-          "type": "polygon",
-          "waypoints": [
-            {
-              "lat": 41.276526867535786,
-              "lon": 1.9889827578231234
-            },
-            {
-              "lat": 41.27653089908068,
-              "lon": 1.9890136032267947
-            },
-            {
-              "lat": 41.27648755996002,
-              "lon": 1.9890310375853915
-            },
-            {
-              "lat": 41.276476473203594,
-              "lon": 1.9890042154952425
-            }
-          ]
-        }
-      ]
+      "type": "circle",
+      "lat": 41.27638373392762,
+      "lon": 1.9888526446268884,
+      "radius": 5.8681900677013585
     }
   ]
 }
+
+
 '''
 
 
 # clase para gestionar los parámetros del dron
 class ParameterManager:
     # con esta clase gestionamos los parámetros de un dron
-    def __init__(self, window, swarm, pos):
+    def __init__(self, window, dron):
         self.window = window
-        self.swarm = swarm
-        self.pos = pos
+        self.dron = dron
         self.on_off = 0 # indica si el geofence está habilitado (1) o no (0)
         # preparo el color correspondiente al dron (identificado del 0 en adelante)
-        color = ['red', 'blue', 'green', 'yellow'][pos]
+        color = 'red'
 
 
-        self.managementFrame = tk.LabelFrame (window, text = 'Dron '+str(pos+1), fg=color)
+        self.managementFrame = tk.LabelFrame (window, text = 'Dron 1', fg=color)
         self.managementFrame.rowconfigure(0, weight=1)
         self.managementFrame.rowconfigure(1, weight=1)
         self.managementFrame.rowconfigure(2, weight=1)
@@ -183,7 +151,7 @@ class ParameterManager:
         self.managementFrame.rowconfigure(6, weight=1)
         self.managementFrame.rowconfigure(7, weight=1)
         self.managementFrame.rowconfigure(8, weight=1)
-        self.managementFrame.rowconfigure(9, weight=1)
+
 
 
         self.managementFrame.columnconfigure(0, weight=1)
@@ -251,14 +219,7 @@ class ParameterManager:
         tk.Button(self.managementFrame, text='Enviar valores', bg="dark orange", command=self.write_params) \
             .grid(row=8, column=1, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
         # en el caso del primer dron quiero poder copiar sus valores en todos los demás
-        if pos == 0:
-            tk.Button(self.managementFrame, text='Copiar valores en todos los drones', bg="dark orange",
-                      command=self.copy_params) \
-                .grid(row=9, column=0, columnspan=2, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
-        else:
-            # en el respo de los casos simplemente pongo un botón invisible para que se vean todos los managers alineados
-            b = tk.Button(self.managementFrame, state=tk.DISABLED, bd=0)
-            b.grid(row=9, column=0, columnspan=2, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+
 
     # Esto se activa si pulso el boton de activar/desactivar el geofence
     def on_off_btnClick (self):
@@ -291,7 +252,7 @@ class ParameterManager:
             "FENCE_ALT_MAX",
             "FLTMODE6"
         ]
-        result = self.swarm[self.pos].getParams(parameters)
+        result = self.dron.getParams(parameters)
         # coloco cada valor en su sitio
         # RTL_ALT viene en cm
         self.RTL_ALT_Sldr.set (int(result [0]['RTL_ALT']/100))
@@ -311,7 +272,7 @@ class ParameterManager:
             self.on_off = 1
             self.on_offBtn['text'] = 'ON'
             self.on_offBtn['bg'] = 'green'
-        self.NAV_SPEED_Sldr.set (self.swarm[self.pos].navSpeed)
+        self.NAV_SPEED_Sldr.set (self.dron.navSpeed)
     # escribo en el dron los valores seleccionados
     def write_params (self):
         if self.switch_action_option.get () == 'Land':
@@ -328,29 +289,12 @@ class ParameterManager:
             {'ID': "FENCE_ALT_MAX", 'Value': float(self.FENCE_ALT_MAX_Sldr.get())},
             {'ID': "FLTMODE6", 'Value': float(switch_option)}
         ]
-        self.swarm[self.pos].setParams(parameters)
-        self.swarm[self.pos].navSpeed = float(self.NAV_SPEED_Sldr.get())
-        #self.swarm[self.pos].startBottomGeofence(5)
+        self.dron.setParams(parameters)
+        self.dron.navSpeed = float(self.NAV_SPEED_Sldr.get())
         messagebox.showinfo( "showinfo", "Parámetros enviados", parent=self.window)
 
-    # copio los valores de los parámetros del dron primero en todos los demás
-    def copy_params (self):
 
-        for i in range (1,len(self.swarm)):
-            dronManager = self.managers[i]
-
-            dronManager.RTL_ALT_Sldr.set(self.RTL_ALT_Sldr.get())
-            dronManager.PILOT_SPEED_UP_Sldr.set(self.PILOT_SPEED_UP_Sldr.get())
-            dronManager.FENCE_MARGIN_Sldr.set(self.FENCE_MARGIN_Sldr.get())
-            dronManager.FENCE_ALT_MAX_Sldr.set(self.FENCE_ALT_MAX_Sldr.get())
-            dronManager.fence_action_option.set(self.fence_action_option.get())
-            dronManager.switch_action_option.set(self.switch_action_option.get())
-            dronManager.NAV_SPEED_Sldr.set(self.NAV_SPEED_Sldr.get())
-
-            dronManager.on_off =  self.on_off
-            dronManager.on_offBtn['text'] = self.on_offBtn['text']
-            dronManager.on_offBtn['bg'] =  self.on_offBtn['bg']
-
+# esta función da la distancia en metros entre dos posiciones
 def haversine(lat1, lon1, lat2, lon2):
     # Radio de la Tierra en metros
     R = 6371000
@@ -370,44 +314,57 @@ def haversine(lat1, lon1, lat2, lon2):
 
     return distance
 
+
+
+def whichArea (lat, lon, areas):
+    # identifico en cuál de las areas está la posición que se recibe como parámetro
+    point = Point(lat, lon)
+    for i in range (0,len(areas)):
+        polygon = Polygon(areas[i])
+        if polygon.contains(point):
+            return i
+    # si no está en ninguna de la lista es que esta en la última área, que es la que ha quedado
+    # sin cubrir con las areas anteriores
+    return len(areas)
+
 # procesado de los datos de telemetría
 def processTelemetryInfo (id, telemetry_info):
-    global dronIcons
+    global  inArea, black, dronIcon
+    global modoLab, altitudLab
     # recupero la posición en la que está el dron
     lat = telemetry_info['lat']
     lon = telemetry_info['lon']
     alt = telemetry_info['alt']
+    modo = telemetry_info['flightMode']
 
-    # si es el primer paquete de este dron entonces ponemos en el mapa el icono de ese dron
-    if not dronIcons[id]:
-        dronIcons[id] = map_widget.set_marker(lat, lon,
-                        icon=dronPictures[id],icon_anchor="center")
+    # averiguo en qué área esta el dron en este momento
+    # otras funciones necesitan esa información
+    inArea = whichArea (lat,lon, selectedScenario['areas'])
+
+
+    # si es el primer paquete de telemetría ponemos en el mapa el icono de ese dron
+    if not dronIcon:
+        dronIcon = map_widget.set_marker(lat, lon,
+                        icon=black,icon_anchor="center")
     # si no es el primer paquete entonces muevo el icono a la nueva posición
     else:
-        dronIcons[id].set_position(lat,lon)
+        dronIcon.set_position(lat,lon)
+
     # actrualizo la altitud
-    altitudes[id]['text'] = str (round(alt,2))
-
-    # dejo rastro si debo hacerlo y guardo el marcador en la lista correspondiente al dron,
-    # para luego poder borrarlo si así lo pide el jugador. También necesitare la posición del marcador
-    if drawingAction[id] == 'draw':
-        marker = map_widget.set_marker(lat, lon,
-                              icon=dronLittlePictures[id], icon_anchor="center")
-        traces[id].append({'pos': (lat,lon), 'marker': marker})
-    elif drawingAction [id] == 'remove':
-        for item in traces[id]:
-            # elimino de la lista de trazas todas las que están a menos de un metro de la posición del dron
-            center = item['pos']
-            if haversine (center[0], center[1], lat, lon) < 1:
-                traces[id].remove(item)
-                item['marker'].delete()
+    if altitudLab:
+        altitudLab['text'] = str (round(alt,2))
+    # y el modo de vuelo
+    if modoLab:
+        modoLab['text'] = modo
 
 
 
-########## Funciones para la creación de multi escenarios #################################
+
+
+########## Funciones para la creación del escenario  #################################
 
 def createBtnClick ():
-    global scenario, polys, markers
+    global scenario
     scenario = []
     # limpiamos el mapa de los elementos que tenga
     clear()
@@ -429,144 +386,182 @@ def createBtnClick ():
     superviseBtn['fg'] = 'black'
     superviseBtn['bg'] = 'dark orange'
 
-# iniciamos la creación de un fence tipo polígono
-def definePoly(type):
-    global fence, paths, polys
-    global fenceType
+# iniciamos la creación de un obstáculo poligonal
+def definePoly():
+    global state, obstaclePoints, obstacle
 
-    fenceType = type # 1 es inclusión y 2 es exclusión
-
-    paths = []
-    fence = {
-        'type' : 'polygon',
+    state = "definingObstaclePoly"
+    obstaclePoints = 0
+    obstacle = {
+        'type': 'polygon',
         'waypoints': []
     }
     # informo del tema de los botones del mouse para que el usuario no se despiste
     messagebox.showinfo("showinfo",
                         "Con el boton izquierdo del ratón señala los waypoints\nCon el boton derecho cierra el polígono")
 
-# iniciamos la creación de un fence tipo círculo
-def defineCircle(type):
-    global fence, paths, polys
-    global fenceType, centerFixed
+# iniciamos la creación de un obstáculo con forma de círculo
+def defineCircle():
+    global centerFixed, state, obstacle
 
-    fenceType = type  # 1 es inclusión y 2 es exclusión
-    paths = []
-    fence = {
-        'type': 'circle'
+    state = "definingObstacleCircle"
+    obstacle = {
+        'type': 'circle',
+        "lat": None,
+        "lon": None,
+        "radius": None
     }
     centerFixed = False
     # informo del tema de los botones del mouse para que el usuario no se despiste
     messagebox.showinfo("showinfo",
                         "Con el boton izquierdo señala el centro\nCon el boton derecho marca el límite del círculo")
 
-# capturamos el siguiente click del mouse
+# capturamos el siguiente click del boton izquierdo del mouse
 def getFenceWaypoint (coords):
-    global marker, centerFixed
-    # acabo de clicar con el botón izquierdo
-    if fence:
-        # hay un fence en marcha
-        # veamos si el fence es un polígono o un círculo
-        if fence['type'] == 'polygon':
-            if len(fence['waypoints']) == 0:
-                # es el primer waypoint del fence. Pongo un marcador
-                if fenceType == 1:
-                    # en el fence de inclusión (límites del escenario)
-                    marker = map_widget.set_marker(coords[0], coords[1], icon=colorIcon, icon_anchor="center")
-                else:
-                    # es un obstáculo
-                    marker = map_widget.set_marker(coords[0], coords[1], icon=black, icon_anchor="center")
+    global centerFixed, state, limitPoints, areaPoints, obstaclePoints
 
-            if len(fence['waypoints']) > 0:
-                # trazo una línea desde el anterior a este
-                lat = fence['waypoints'][-1]['lat']
-                lon = fence['waypoints'][-1]['lon']
-                # elijo el color según si es de inclusión o un obstáculo
-                if fenceType == 1:
-                    paths.append(map_widget.set_path([(lat,lon), coords], color=selectedColor, width=3))
-                else:
-                    paths.append(map_widget.set_path([(lat,lon), coords], color='black', width=3))
-                # si es el segundo waypoint quito el marcador que señala la posición del primero
-                if len(fence['waypoints']) == 1:
-                    marker.delete()
+    if state == "definingLimits":
+        # estoy definiendo el polígono que delimita el espacio de vuelo,
+        # que se convertira en un geofence de inclusión
+        limitPoints = limitPoints+1
+        # señalo el punto con un marcador negro, que guardo en una lista para poder eliminarlo más tarde
+        limits.append(map_widget.set_marker(coords[0], coords[1], icon=black, icon_anchor="center"))
 
-            # guardo el nuevo waypoint
-            fence['waypoints'].append ({'lat': coords[0], 'lon': coords[1]})
+        if  limitPoints > 1:
+            # ahora trazo la línea que une el nuevo punto con tel anterior
+            limits.append(map_widget.set_path([escenarioControladores['limits'][-1], coords], color='gray', width=3))
+        # añado el nuevo punto a la lista de puntos que delimitan el area de vuelo
+        escenarioControladores['limits'].append(coords)
+
+    elif state == "definingArea":
+        # estoy definiendo el polígono que delimita una de las áreas de vuelo
+        areaPoints = areaPoints + 1
+        # añado un punto del color que corresponde al área que se está delimitando
+        limits.append(map_widget.set_marker(coords[0], coords[1], icon=colorIcon, icon_anchor="center"))
+        if areaPoints > 1:
+            # ahora trazo la línea que une el nuevo punto con el punto anterior de ese área
+            limits.append(map_widget.set_path([area[-1], coords], color=selectedColor, width=3))
+        # añado el punto a la lista de puntos que delimitan el área que se está definiendo
+        area.append(coords)
+
+    elif state == "definingObstaclePoly":
+        # estamos definiendo un obstáculo con forma poligonal
+        obstaclePoints = obstaclePoints + 1
+        # señalo el punto con el círculo negro
+        limits.append(map_widget.set_marker(coords[0], coords[1], icon=black, icon_anchor="center"))
+        if obstaclePoints > 1:
+            # ahora trazo la línea que une el nuevo punto con el punto anterior del obstáculo
+            limits.append(map_widget.set_path([obstacle['waypoints'][-1], coords], color='black', width=3))
+        # añado el punto a la lista de puntos que delimitan el obstáculo se está definiendo
+        obstacle['waypoints'].append(coords)
+
+    elif state == "definingObstacleCircle":
+        # estamos definiendo un obstáculo de tipo círculo
+        if centerFixed:
+            # ya habíamos señalado el centro del círculo. Ahora estamos esperando el click en el botón derecho
+            # y no otro click en el izquierdo
+            messagebox.showinfo("Error",
+                                "Marca el límite con el botón derecho del mouse")
         else:
-            # es un círculo. El click indica la posición de centro del circulo
-            if centerFixed:
-                messagebox.showinfo("Error",
-                                    "Marca el límite con el botón derecho del mouse")
+            # acabamos de señalar el centro del círculo
+            # guardo los datos
+            obstacle['lat'] = coords[0]
+            obstacle['lon'] = coords[1]
+            centerFixed = True
+            # marco el centro con el icono negro
+            limits.append(map_widget.set_marker(coords[0], coords[1], icon=black, icon_anchor="center"))
 
-            else:
-                # ponemos un marcador del color adecuado para indicar la posición del centro
-                if fenceType == 1:
-                    marker = map_widget.set_marker(coords[0], coords[1], icon=colorIcon, icon_anchor="center")
-                else:
-                    marker = map_widget.set_marker(coords[0], coords[1], icon=black, icon_anchor="center")
-                # guardamos la posicion de centro
-                fence['lat']= coords[0]
-                fence['lon'] = coords[1]
-                centerFixed = True
-    else:
-        messagebox.showinfo("error",
-                            "No hay ningun fence en construccion\nIndica primero qué tipo de fence quieres")
-
-# cerramos el fence
 def closeFence(coords):
-    global poly, polys, fence
-    # estamos creando un fence y acabamos de darle al boton derecho del mouse para cerrar
-    # el fence está listo
-    if fence['type'] == 'polygon':
-        scenario.append(fence)
+    # hemos clicado el boton derecho para cerrar un polígono o un círculo
+    global polys, escenarioControladores, limits, state, limitsBtn, redPlayerBtn, bluePlayerBtn, greenPlayerBtn
+    global areaPoints, area, obstacle
 
-        # substituyo los paths por un polígono
-        for path in paths:
-            path.delete()
 
-        poly = []
-        for point in  fence['waypoints']:
-            poly.append((point['lat'], point['lon']))
-
-        if fenceType == 1:
-            # polígono del color correspondiente al jugador
-            polys.append(map_widget.set_polygon(poly,
-                                        outline_color=selectedColor,
-                                        fill_color=selectedColor,
-                                        border_width=3))
+    if state == "definingLimits":
+        # acabamos de cerrar los limites del area de vuelo.
+        # Pintamos ese area del color del ultimo jugador, que es el que se quedará con los restos
+        # no ocupados por las otras areas. Por ejemplo, si hay 3 jugadores, se definirán las areas del
+        # jugador rojo y del azul. Para el jugador verde quedará el resto. En ese caso pintamos el espacio
+        # de verde
+        if numPlayers == 1:
+            color = 'red'
+        elif numPlayers == 2:
+            color = 'blue'
+        elif numPlayers == 3:
+            color = 'green'
         else:
-            # polígono de color negro (obstaculo)
-            polys.append(map_widget.set_polygon(poly,
-                                                fill_color='black',
-                                                outline_color="black",
-                                                border_width=3))
-    else:
-        # Es un circulo y acabamos de marcar el límite del circulo
-        # borro el marcador del centro
-        marker.delete()
-        center= (fence['lat'], fence['lon'])
+            color = 'yellow'
+        polys.append(map_widget.set_polygon(escenarioControladores['limits'],
+                                            outline_color=color,
+                                            fill_color=color,
+                                            border_width=3))
+        # ya podemos eliminar los marcadores que hemos ido usando
+        for element in limits:
+            element.delete()
+        limits = []
+        limitsBtn ['text']="Listo"
+        # ahora esperamos que el usuario empiece a definir las áreas de los diferentes jugadores
+        state = "definigArea"
+
+
+    elif state == "definingArea":
+        # acabamos de cerrar el area de uno de los jugadores cuyo color esta en selectedColor
+        polys.append(map_widget.set_polygon(area,
+                                            outline_color=selectedColor,
+                                            fill_color=selectedColor,
+                                            border_width=3))
+        # guardamos el area en el escenario
+        escenarioControladores['areas'].append (area)
+        # eliminamos los marcadores que hemos usado para definir este área
+        for element in limits:
+            element.delete()
+        limits = []
+        # nos preparamos para la siguiente área
+        area = []
+        areaPoints = 0
+
+        if selectedColor == 'red':
+            redPlayerBtn ["text"] ="Listo"
+        elif selectedColor == 'blue':
+            bluePlayerBtn["text"] = "Listo"
+        elif selectedColor == 'green':
+            greenPlayerBtn["text"] = "Listo"
+
+    elif state == "definingObstaclePoly":
+        # acabamos de cerrar un obstaculo poligonal
+        polys.append(map_widget.set_polygon(obstacle['waypoints'],
+                                            outline_color='black',
+                                            fill_color='black',
+                                            border_width=3))
+        # añadimos el obstáculo al escenario
+        escenarioControladores['obstacles'].append(obstacle)
+        # eliminamos los marcadores que hemos usado para definir este obtáculo
+        for element in limits:
+            element.delete()
+        limits = []
+
+    elif state == "definingObstacleCircle":
+        # acabamos de cerrar un obstaculo circular
+        # calculamos el radio (distancia entre el centro y este punto en el que hemos clicado)
+        center = (obstacle['lat'], obstacle['lon'])
         limit = (coords[0], coords[1])
         radius = geopy.distance.geodesic(center, limit).m
-        # el radio del círculo es la distancia entre el centro y el punto clicado
-        fence['radius'] = radius
-        # ya tengo completa la definición del fence
-        scenario.append(fence)
+        obstacle['radius'] = radius
+        # añado el obstáculo al escenario
+        escenarioControladores['obstacles'].append(obstacle)
+        # eliminamos los marcadores que hemos usado para definir este obtáculo
+        for element in limits:
+            element.delete()
+        limits = []
+
         # como no se puede dibujar un circulo con la librería tkintermapview, creo un poligono que aproxime al círculo
-        points = getCircle(fence['lat'], fence['lon'], radius)
+        points = getCircle(obstacle['lat'], obstacle['lon'], radius)
+        polys.append(map_widget.set_polygon(points,
+                                            fill_color='black',
+                                            outline_color="black",
+                                            border_width=3))
 
-        # Dibujo en el mapa el polígono que aproxima al círculo, usando el color apropiado según el tipo y el jugador
-        if fenceType == 1:
-            polys.append(map_widget.set_polygon(points,
-                                                outline_color= selectedColor,
-                                                fill_color=selectedColor,
-                                                border_width=3))
-        else:
-            polys.append(map_widget.set_polygon(points,
-                                                fill_color='black',
-                                                outline_color="black",
-                                                border_width=3))
 
-    fence = None
 
 # La siguiente función crea una imagen capturando el contenido de una ventana
 def screenshot(window_title=None):
@@ -589,19 +584,17 @@ def screenshot(window_title=None):
 
 # guardamos los datos del escenario (imagen y fichero json)
 def registerScenario ():
-    global multiScenario
+    global escenarioControladores
 
-    # voy a guardar el multi escenario en el fichero con el nombre indicado en el momento de la creación
+    # voy a guardar el escenario en el fichero con el nombre indicado en el momento de la creación
     jsonFilename = 'escenariosControladores/' + name.get() + "_"+str(numPlayers)+".json"
-    print ("**** ",multiScenario)
 
     with open(jsonFilename, 'w') as f:
-        json.dump(multiScenario, f)
-    # aqui capturo el contenido de la ventana que muestra el Camp Nou (zona del cesped, que es dónde está el escenario)
+        json.dump(escenarioControladores, f)
+    # aqui capturo el contenido de la ventana que muestra el escenario que se acaba de definir
     im = screenshot('Gestión de escenarios')
     imageFilename = 'escenariosControladores/'+name.get()+ "_"+str(numPlayers)+".png"
     im.save(imageFilename)
-    multiScenario = []
     # limpio el mapa
     clear()
 
@@ -618,10 +611,89 @@ def getCircle ( lat, lon, radius):
         points.append((lat2, lon2))
     return points
 
+def createPlayer (color):
+    # aqui vamos a crear el escenario para uno de los jugadores, el que tiene el color indicado como parámetro
+    global colorIcon
+    global selectedColor, scenario, state, area, areaPoints
+    # nos preparamos para definir el área de este jugador
+    state = "definingArea"
+    selectedColor = color
+    areaPoints = 0
+    area = []
+    if color == 'red':
+        colorIcon = red
+    elif color == 'blue':
+        colorIcon = blue
+    elif color == 'green':
+        colorIcon = green
+
+    messagebox.showinfo("showinfo",
+                        "Con el boton izquierdo del ratón señala los límites de area. \nCon el boton derecho cierra el polígono")
+
+def defineLimits ():
+    # vamos a empezar a definir los límites del área de vuelo
+    global state, limitPoints
+    state = 'definingLimits'
+    limitPoints = 0
+    messagebox.showinfo("showinfo",
+                        "Con el boton izquierdo del ratón señala los límites de escenario. \nCon el boton derecho cierra el polígono")
+
+# elijo el número de jugadores
+def selectNumPlayers (num):
+    global redPlayerBtn, bluePlayerBtn, greenPlayerBtn, yellowPlayerBtn
+    global escenarioControladores
+    global numPlayers
+    global limitsBtn
+
+    numPlayers = num
+
+    # empezamos a preparar la estructura de datos del multi escenario
+    escenarioControladores = {
+        'numPlayers': num,  # numero de jugadores
+        'limits': [],       # limites del escenario (geofence de inclusion)
+        'areas': [],        # areas para num-1 jugadores (el area del ultimo es lo que quede sin cubrir)
+        'obstacles': []     # geofences de exclusion
+    }
+    # colocamos los botones que permiten crear el escenario para cada uno de los jugadores
+    limitsBtn = tk.Button(selectPlayersFrame, text="Marca los límites del escenario", bg="gray", fg='white',
+                             command=defineLimits)
+    limitsBtn.grid(row=2, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    if num == 1:
+        pass
+    if num == 2:
+        redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red", fg='white',
+                                command = lambda: createPlayer('red'))
+        redPlayerBtn.grid(row=3, column=0, columnspan = 4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+    if num == 3:
+        redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red",
+                                 fg='white',
+                                 command=lambda: createPlayer('red'))
+        redPlayerBtn.grid(row=3, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+        bluePlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador azul", bg="blue",
+                                  fg='white',
+                                  command=lambda: createPlayer('blue'))
+        bluePlayerBtn.grid(row=4, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+    if num == 4:
+        redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red",
+                                 fg='white',
+                                 command=lambda: createPlayer('red'))
+        redPlayerBtn.grid(row=3, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+        bluePlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador azul", bg="blue",
+                                  fg='white',
+                                  command=lambda: createPlayer('blue'))
+        bluePlayerBtn.grid(row=4, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        greenPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador verde", bg="green",
+                                   fg='white',
+                                   command=lambda: createPlayer('green'))
+        greenPlayerBtn.grid(row=5, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
 
 
-############################ Funciones para seleccionar multi escenario ##########################################
+############################ Funciones para seleccionar el escenario ##########################################
 def selectBtnClick ():
     global scenarios, current, polys
     scenarios = []
@@ -645,15 +717,16 @@ def selectBtnClick ():
     superviseBtn['fg'] = 'black'
     superviseBtn['bg'] = 'dark orange'
 
-# una vez elegido el numero de jugadores mostramos los multi escenarios que hay para ese número de jugadores
+# una vez elegido el numero de jugadores mostramos los escenarios que hay para ese número de jugadores
 def selectScenarios (num):
-    global scenarios, current, polys
+    global scenarios, current
     global numPlayers
     numPlayers = num
-    # cargamos en una lista las imágenes de todos los multi escenarios disponibles
+
+    # cargamos en una lista las imágenes de todos los escenarios disponibles
     # para el número de jugadores indicado
     scenarios = []
-    for file in glob.glob("multiScenarios/*_"+str(num)+".png"):
+    for file in glob.glob("escenariosControladores/*_"+str(num)+".png"):
         scene = Image.open(file)
         scene = scene.resize((300, 200))
         scenePic = ImageTk.PhotoImage(scene)
@@ -710,15 +783,13 @@ def showNext ():
         nextBtn['state'] = tk.NORMAL
 
 # Limpiamos el mapa
+# Se trata de borrar todos los elementos de la lista polys que contiene los polígonos que hemos ido dibujando
 def clear ():
-    global paths, fence, polys
+    global polys
+    # también tengo que borrar el texto de la caja para el nombre
     name.set ("")
-    for path in paths:
-        path.delete()
     for poly in polys:
         poly.delete()
-
-    paths = []
     polys = []
 
 # borramos el escenario que esta a la vista
@@ -761,79 +832,118 @@ def deleteScenario ():
             clear()
 
 # dibujamos en el mapa el multi escenario
-def drawScenario (multiScenario):
+def drawScenario (scenario):
     global polys
-
     # borro los elementos que haya en el mapa
     for poly in polys:
         poly.delete()
-    # vamos a recorrer la lista de escenarios
-    scenarios = multiScenario ['scenarios']
-    for element in scenarios:
-        color = element ['player']
-        # cojo el escenario de este cugador
-        scenario = element['scenario']
-        # ahora dibujamos el escenario
-        # el primer fence es el de inclusión
-        inclusion = scenario[0]
-        if inclusion['type'] == 'polygon':
-            poly = []
-            for point in inclusion['waypoints']:
-                poly.append((point['lat'], point['lon']))
-            polys.append(map_widget.set_polygon(poly,
-                                                outline_color=color,
-                                                fill_color=color,
-                                                border_width=3))
-        else:
-            # el fence es un círculo. Como no puedo dibujar circulos en el mapa
-            # creo el polígono que aproximará al círculo
-            poly = getCircle(inclusion['lat'], inclusion['lon'], inclusion['radius'])
-            polys.append(map_widget.set_polygon(poly,
-                                                outline_color=color,
-                                                fill_color=color,
-                                                border_width=3))
-        # ahora voy a dibujar los obstáculos
-        for i in range(1, len(scenario)):
-            fence = scenario[i]
-            if fence['type'] == 'polygon':
-                poly = []
-                for point in fence['waypoints']:
-                    poly.append((point['lat'], point['lon']))
-                polys.append(map_widget.set_polygon(poly,
+
+    numPlayers = scenario['numPlayers']
+    if numPlayers == 1:
+        polys.append(map_widget.set_polygon(scenario['limits'],
+                                            outline_color='red',
+                                            fill_color='red',
+                                            border_width=3))
+
+    elif numPlayers == 2:
+        polys.append(map_widget.set_polygon(scenario['limits'],
+                                            outline_color='blue',
+                                            fill_color='blue',
+                                            border_width=3))
+        polys.append(map_widget.set_polygon(scenario['areas'][0],
+                                            outline_color='red',
+                                            fill_color='red',
+                                            border_width=3))
+    elif numPlayers == 3:
+        polys.append(map_widget.set_polygon(scenario['limits'],
+                                            outline_color='green',
+                                            fill_color='green',
+                                            border_width=3))
+        polys.append(map_widget.set_polygon(scenario['areas'][0],
+                                            outline_color='red',
+                                            fill_color='red',
+                                            border_width=3))
+        polys.append(map_widget.set_polygon(scenario['areas'][1],
+                                            outline_color='blue',
+                                            fill_color='blue',
+                                            border_width=3))
+    elif numPlayers == 4:
+        polys.append(map_widget.set_polygon(scenario['limits'],
+                                            outline_color='yellow',
+                                            fill_color='yellow',
+                                            border_width=3))
+        polys.append(map_widget.set_polygon(scenario['areas'][0],
+                                            outline_color='red',
+                                            fill_color='red',
+                                            border_width=3))
+        polys.append(map_widget.set_polygon(scenario['areas'][1],
+                                            outline_color='blue',
+                                            fill_color='blue',
+                                            border_width=3))
+        polys.append(map_widget.set_polygon(scenario['areas'][2],
+                                            outline_color='green',
+                                            fill_color='green',
+                                            border_width=3))
+
+
+    for obstacle in scenario['obstacles']:
+        if obstacle['type'] == 'polygon':
+            polys.append(map_widget.set_polygon(obstacle['waypoints'],
                                                     outline_color="black",
                                                     fill_color="black",
                                                     border_width=3))
-            else:
-                poly = getCircle(fence['lat'], fence['lon'], fence['radius'])
-                polys.append(map_widget.set_polygon(poly,
+        else:
+            poly = getCircle(obstacle['lat'], obstacle['lon'], obstacle['radius'])
+            polys.append(map_widget.set_polygon(poly,
                                                     outline_color="black",
                                                     fill_color="black",
                                                     border_width=3))
 
-# seleccionar el multi escenario que está a la vista
+# seleccionar el escenario que está a la vista
 def selectScenario():
-    global polys, selectedMultiScenario, numPlayers
+    global polys, selectedScenario, numPlayers
     # limpio el mapa
     for poly in polys:
         poly.delete()
     # cargamos el fichero json con el multi escenario seleccionado (el que está en la posición current de la lista9
     f = open(scenarios[current]['name'] +'.json')
-    selectedMultiScenario = json.load (f)
+    selectedScenario = json.load (f)
     # dibujo el escenario
-    drawScenario(selectedMultiScenario)
+    drawScenario(selectedScenario)
     # habilito el botón para enviar el escenario al enjambre
     sendBtn['state'] = tk.NORMAL
 
 # envia los datos del multi escenario seleccionado al enjambre
 def sendScenario ():
-    # enviamos a cada dron del enjambre el escenario que le toca
-    global swarm
-    global connected, dron, dronIcons
-    global altitudes
+    # enviamos el escenario al dron
+    # tenemos que construir la estructura de datos necesaria
 
-    for i in range (0,len(swarm)):
-        swarm[i].setScenario(selectedMultiScenario['scenarios'][i]['scenario'])
+    global dron
+    global selectedScenario
+    scenario = []
+    waypoints = []
+    for waypoint in selectedScenario['limits']:
+        waypoints.append ({
+            'lat': waypoint[0],
+            'lon': waypoint[1]
+        })
 
+    scenario.append (
+        {
+            'type':'polygon',
+            'waypoints': waypoints
+        }
+    )
+    for obstacle in selectedScenario ['obstacles']:
+        if obstacle['type'] == 'circle':
+            scenario.append (obstacle)
+        else:
+            scenario.append ( {
+                'type':'polygon',
+                'waypoints': [{'lat': lat, 'lon':lon} for (lat,lon) in obstacle['waypoints']]
+            })
+
+    dron.setScenario (scenario)
     sendBtn['bg'] = 'green'
 
 # carga el multi escenario que hay ahora en el enjambre
@@ -855,185 +965,70 @@ def loadScenario ():
         messagebox.showinfo("showinfo",
                         "No hay ningún escenario cargado en el dron")
 
-# preparo los botones para crear el escenario de cada jugador
-def createPlayer (color):
-    # aqui vamos a crear el escenario para uno de los jugadores, el que tiene el color indicado como parámetro
-    global colorIcon
-    global selectedColor, scenario
-    selectedColor = color
-    # veamos en que caso estamos
-    if color == 'red':
-        # empezamos a crear el escenario de este jugador
-        if 'Crea' in redPlayerBtn['text']:
-            colorIcon = red
-            redPlayerBtn['text'] = "Clica aquí cuando hayas acabado el escenario rojo"
-            scenario = []
-        # damos por terminado el escenario de este jugador
-        elif 'Clica' in redPlayerBtn['text']:
-            redPlayerBtn['text'] = "Escenario rojo listo"
-            # lo añadimos a la estructura del multi escenario
-            multiScenario ['scenarios'].append ({
-                'player': 'red',
-                'scenario': scenario
-            })
-
-    # ahora lo mismo para el resto de jugadores
-    elif color == 'blue':
-        if 'Crea' in bluePlayerBtn['text']:
-            colorIcon = blue
-            bluePlayerBtn['text'] = "Clica aquí cuando hayas acabado el escenario azul"
-            scenario = []
-        elif 'Clica' in bluePlayerBtn['text']:
-            bluePlayerBtn['text'] = "Escenario azul listo"
-            multiScenario['scenarios'].append({
-                'player': 'blue',
-                'scenario': scenario
-            })
-
-    elif color == 'green':
-        if 'Crea' in greenPlayerBtn['text']:
-            colorIcon = green
-            greenPlayerBtn['text'] = "Clica aquí cuando hayas acabado el escenario verde"
-            scenario = []
-        elif 'Clica' in greenPlayerBtn['text']:
-            greenPlayerBtn['text'] = "Escenario verde listo"
-            multiScenario['scenarios'].append({
-                'player': 'green',
-                'scenario': scenario
-            })
+def toggleHeading ():
+    # según esté el boton haré una cosa u otra
+    global toggleHeadingBtn, dron
+    if 'Fijar' in toggleHeadingBtn['text']:
+        toggleHeadingBtn['text'] = 'Desbloquear heading'
+        dron.fixHeading ()
     else:
-        if 'Crea' in yellowPlayerBtn['text']:
-            colorIcon = yellow
-            yellowPlayerBtn['text'] = "Clica aquí cuando hayas acabado el escenario amarillo"
-            scenario = []
-        elif 'Clica' in yellowPlayerBtn['text']:
-                yellowPlayerBtn['text'] = "Escenario amarillo listo"
-                multiScenario['scenarios'].append({
-                    'player': 'yellow',
-                    'scenario': scenario
-                })
+        toggleHeadingBtn['text'] = 'Fijar heading'
+        dron.unfixHeading ()
 
-def defineLimits ():
-    pass
-
-def createAreaForPlayer (n):
-    pass
-# elijo el número de jugadores
-def selectNumPlayers (num):
-    global redPlayerBtn, bluePlayerBtn, greenPlayerBtn, yellowPlayerBtn
-    global escenarioControladores
-    global numPlayers
-    numPlayers = num
-    # empezamos a preparar la estructura de datos del multi escenario
-    escenarioControladores = {
-        'numPlayers': num,  # numero de jugadores
-        'limits': [],       # limites del escenario (geofence de inclusion
-        'areas': [],        # areas para num-1 jugadores (el area del ultimo es lo que quede sin cubrir)
-        'obstacles': []     # geofences de exclusion
-    }
-    # colocamos los botones que permiten crear el escenario para cada uno de los jugadores
-    limitsBtn = tk.Button(selectPlayersFrame, text="Marca los límites del escenario", bg="red", fg='white',
-                             command=lambda: defineLimits)
-    limitsBtn.grid(row=2, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-    if num == 1:
-        pass
-    if num == 2:
-        redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red", fg='white',
-                                command = lambda: createPlayer('red'))
-        redPlayerBtn.grid(row=3, column=0, columnspan = 4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-        createAreaForPlayer(2)
-
-    if num == 3:
-        redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red",
-                                 fg='white',
-                                 command=lambda: createPlayer('red'))
-        redPlayerBtn.grid(row=3, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-
-        bluePlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador azul", bg="blue",
-                                  fg='white',
-                                  command=lambda: createPlayer('blue'))
-        bluePlayerBtn.grid(row=4, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-        createAreaForPlayer(3)
-
-    if num == 4:
-        redPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador rojo", bg="red",
-                                 fg='white',
-                                 command=lambda: createPlayer('red'))
-        redPlayerBtn.grid(row=3, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-
-        bluePlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador azul", bg="blue",
-                                  fg='white',
-                                  command=lambda: createPlayer('blue'))
-        bluePlayerBtn.grid(row=4, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-        greenPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador verde", bg="green",
-                                   fg='white',
-                                   command=lambda: createPlayer('green'))
-        greenPlayerBtn.grid(row=5, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-        createAreaForPlayer (4)
-
-        '''yellowPlayerBtn = tk.Button(selectPlayersFrame, text="Crea el escenario para el jugador amarillo", bg="yellow", fg='black',
-                                command = lambda: createPlayer('yellow'))
-        yellowPlayerBtn.grid(row=5, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)'''
-
-# me contecto a los drones del enjambre
+# me contecto al dron
 def connect ():
-    global swarm
-    global connected, dron, dronIcons
-    global altitudes, numPlayers
-    numPlayers = 1
+    global connected, dron, dronIcon
+    global altitud, numPlayers
+    global controlesFrame, telemetriaFrame
+    global altitudLab, modoLab
+    global toggleHeadingBtn
+
 
     if not connected:
+        dron = Dron(0)
 
         if connectOption.get () == 'Simulation':
             # nos al simulador
-            connectionStrings = []
-            base = 5763
-
-            for i in range(0, numPlayers):
-                port = base + i * 10
-                connectionStrings.append('tcp:127.0.0.1:' + str(port))
+            connectionString = "tcp:127.0.0.1:5763"
             baud = 115200
+
         else:
-            # nos conectaremos a los drones reales a través de las radios de telemetría
-            # los puertos ya los hemos indicado y estan en comPorts, separados por comas
-            connectionStrings = comPorts.split(',')
+            # nos conectaremos al dron real mediante la radio de telemetría
+            # el puerto lo ha escrito el usuario y está en comPorts
+            connectionString = comPorts
             baud = 57600
 
+        dron.connect(connectionString, baud)
+        dron.changeNavSpeed(1)
+        dron.send_telemetry_info(processTelemetryInfo)
+        dronIcon = None
 
-        colors = ['red', 'blue', 'green', 'yellow']
-        altitudes = []
+        # colocamos los botones de control en el frame que toca
+        tk.Button(controlesFrame, bg='red', fg='white', text='Aterrizar',
+                  command=lambda : dron.Land(blocking=False)) \
+            .grid(row=0, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+        tk.Button(controlesFrame, bg='red', fg='white', text='Modo guiado',
+                  command=lambda : dron.setFlightMode('GUIDED')) \
+            .grid(row=1, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+        tk.Button(controlesFrame, bg='red', fg='white', text='Modo break',
+                  command=lambda: dron.setFlightMode('BRAKE')) \
+            .grid(row=2, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+        toggleHeadingBtn = tk.Button(controlesFrame, bg='red', fg='white', text='Fijar heading',
+                  command= toggleHeading)
+        toggleHeadingBtn.grid(row=3, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
 
-        # creamos el enjambre
-        swarm = []
-        dronIcons = [None, None, None, None]
-
-        for i in range(0, numPlayers):
-            # identificamos el dron
-            dron = Dron(i)
-            dron.changeNavSpeed(1) # que vuele a 1 m/s
-            swarm.append(dron)
-            # nos conectamos
-            print ('voy a onectar ', i, connectionStrings[i], baud)
-            dron.connect(connectionStrings[i], baud)
-            print ('conectado')
-            # colocamos los botones para aterrizar, cada uno con el color que toca
-            tk.Button(superviseFrame, bg=colors[i],
-                          command=lambda d=swarm[i]: d.Land(blocking=False)) \
-                .grid(row=2, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
-            # colocamos las labels para mostrar las alturas de los drones
-            altitudes.append(tk.Label(superviseFrame, text='', borderwidth=1, relief="solid"))
-            altitudes[-1].grid(row=4, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
-            # solicitamos datos de telemetria del dron
-            dron.send_telemetry_info(processTelemetryInfo)
+        # colocamos las labels para mostrar los datos de telemetría
+        altitudLab = tk.Label(telemetriaFrame, text='', borderwidth=1, relief="solid")
+        altitudLab.grid(row=0, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+        modoLab = tk.Label(telemetriaFrame, text='', borderwidth=1, relief="solid")
+        modoLab.grid(row=1, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
 
         connected = True
         connectBtn['bg'] = 'green'
 
 
 
-
-################### Funciones para supervisar el multi escenario #########################
-
+################### Funciones para supervisar el escenario #########################
 def superviseBtnClick ():
 
     # quitamos los otros dos frames
@@ -1056,25 +1051,21 @@ def superviseBtnClick ():
 
 # creamos la ventana para gestionar los parámetros de los drones del enjambre
 def adjustParameters ():
-    global swarm
+    global dron
     # voy a mostrar la ventana de gestión de los parámetros
     parameterManagementWindow = tk.Tk()
     parameterManagementWindow.title("Gestión de parámetros")
     parameterManagementWindow.rowconfigure(0, weight=1)
     parameterManagementWindow.rowconfigure(1, weight=1)
-    # voy a crear un manager para cada dron
-    managers = []
-    for i in range(0, len(swarm)):
-        parameterManagementWindow.columnconfigure(i, weight=1)
-        dronManager = ParameterManager(parameterManagementWindow, swarm, i)
-        managers.append(dronManager)
-        # coloco el frame correspondiente a este manager en la ventana de gestión de parámetros
-        dronFrame = dronManager.buildFrame()
-        dronFrame.grid(row=0, column=i, padx=50, pady=2, sticky=tk.N + tk.S + tk.E + tk.W)
-    managers[0].setManagers(managers)
+    parameterManagementWindow.columnconfigure(0, weight=1)
+
+    dronManager = ParameterManager(parameterManagementWindow, dron)
+    dronFrame = dronManager.buildFrame()
+    dronFrame.grid(row=0, column=0, padx=50, pady=2, sticky=tk.N + tk.S + tk.E + tk.W)
+
     tk.Button(parameterManagementWindow, text='Cerrar', bg="dark orange",
               command=lambda: parameterManagementWindow.destroy()) \
-        .grid(row=1, column=0, columnspan=len(swarm), padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+        .grid(row=1, column=0, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
 
     parameterManagementWindow.mainloop()
 
@@ -1099,9 +1090,6 @@ def showQR():
 
 
 
-
-
-
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("connected OK Returned code=", rc)
@@ -1109,11 +1097,18 @@ def on_connect(client, userdata, flags, rc):
         print("Bad connection Returned code=", rc)
 
 def publish_event (id, event):
-    # al ser drones idenificados dronLink nos pasa siempre en primer lugar el identificador
-    # del dron que ha hecho la operación
-    # lo necesito para identificar qué jugador debe hacer caso a la respuesta
+    # al ser un dron identificado, la librería nos pasa siempre en primer lugar el identificador del dron
     global client
-    client.publish('multiPlayerDash/mobileApp/'+event+'/'+str(id))
+    # envio el evento (que puede ser 'flying', 'landed' o 'atHome' al dron que tiene el control
+    # es decir, al dron cuyo id coincide con el area en el que está el dron
+    client.publish('multiPlayerDash/mobileApp/'+event+'/'+str(inArea))
+    if event == 'flying':
+        # en este caso comunico a todos que el dron esté en el aire para que lo reflejen así en la interfez
+        # de usuario del movil
+        # ESTO SEGURAMENTE DEBERÍA HACERLO CON LOS OTROS EVENTOS PARA QUE TODOS LOS JUGADORES RECIBAN LA INFORMACIÓN
+        # DE MOMENTO NO LO HAGO PORQUE HAY QUE TOCAR LA WEB APP
+        client.publish('multiPlayerDash/mobileApp/flyingForAll')
+
 
 # aqui recibimos las publicaciones que hacen las web apps desde las que están jugando
 def on_message(client, userdata, message):
@@ -1121,7 +1116,7 @@ def on_message(client, userdata, message):
     # multiPlayerDash/mobileApp/COMANDO/NUMERO
     # el número normalmente será el número del jugador (entre el 0 y el 3)
     # excepto en el caso de la petición de conexión
-    global playersCount
+    global playersCount, dron
     parts = message.topic.split ('/')
     command = parts[2]
     if command == 'connect':
@@ -1133,59 +1128,42 @@ def on_message(client, userdata, message):
             client.publish('multiPlayerDash/mobileApp/notAccepted/'+randomId)
         else:
             # aceptamos y le asignamos el identificador del siguiente jugador
+            # devolvemos el número aleatorio recibido para que solo tenga en cuenta este mensaje el jugador que
+            # se acaba de conectar
             client.publish('multiPlayerDash/mobileApp/accepted/'+randomId, playersCount)
             playersCount = playersCount+1
 
     if command == 'arm_takeOff':
         # en este comando y en los siguientes, el último trozo del topic identifica al jugador que hace la petición
+        # solo atenderemos la petición si el identificador coincide con el área en el que está el dron
         id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'connected':
-            dron.arm()
-            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
-            dron.takeOff(5, blocking=False, callback=publish_event, params='flying')
+        if id == inArea:
+            if dron.state == 'connected':
+                dron.arm()
+                # operación no bloqueante. Cuando acabe publicará el evento correspondiente
+                dron.takeOff(5, blocking=False, callback=publish_event, params='flying')
 
     if command == 'go':
         id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'flying':
-            direction = message.payload.decode("utf-8")
-            dron.go(direction)
+        if id == inArea:
+            if dron.state == 'flying':
+                direction = message.payload.decode("utf-8")
+                dron.go(direction)
 
     if command == 'Land':
         id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'flying':
-            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
-            dron.Land(blocking=False, callback=publish_event, params='landed')
+        if id == inArea:
+            if dron.state == 'flying':
+                # operación no bloqueante. Cuando acabe publicará el evento correspondiente
+                dron.Land(blocking=False, callback=publish_event, params='landed')
 
     if command == 'RTL':
         id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'flying':
-            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
-            dron.RTL(blocking=False, callback=publish_event, params='atHome')
+        if id == inArea:
+            if dron.state == 'flying':
+                # operación no bloqueante. Cuando acabe publicará el evento correspondiente
+                dron.RTL(blocking=False, callback=publish_event, params='atHome')
 
-    if command == 'startDrawing':
-        id = int (parts[3])
-        drawingAction [id] = 'draw'
-
-    if command == 'stopDrawing':
-        id = int (parts[3])
-        drawingAction [id] = 'nothing'
-
-    if command == 'startRemovingDrawing':
-        id = int (parts[3])
-        drawingAction[id] = 'remove'
-
-    if command == 'stopRemovingDrawing':
-        id = int (parts[3])
-        drawingAction[id] = 'nothing'
-    if command == 'removeAll':
-        id = int(parts[3])
-        for item in traces[id]:
-            item['marker'].delete()
-        traces[id] = []
 
 
 
@@ -1197,28 +1175,25 @@ def crear_ventana():
     global prevBtn, nextBtn, sendBtn, connectBtn
     global scenarioCanvas
     global i_wp, e_wp
-    global paths, fence, polys
+    global polys, limits
     global connected
     global selectPlayersFrame
-    global red, blue, green, yellow, black, dronPictures
+    global red, blue, green, yellow, black
     global connectOption
     global playersCount
     global client
-    global drawingAction, traces, dronLittlePictures
     global QRimg
+    global controlesFrame, telemetriaFrame
+    global altitudLab, modoLab
+
 
     playersCount = 0
-
     connected = False
-    # aqui indicare, para cada dron, si estamos pintando o no
-    drawingAction = ['nothing']*4 # nothing, draw o remove
-    # y aqui ire guardando los rastros
-    traces = [[]]*4
 
-    # para guardar datos y luego poder borrarlos
-    paths = []
-    fence = []
+
+    # para guardar mrcadores del mapa y luego poder borrarlos
     polys = []
+    limits = []
 
 
     ventana = tk.Tk()
@@ -1296,36 +1271,24 @@ def crear_ventana():
     tk.Button(selectPlayersFrame, text="4", bg="dark orange", command=lambda: selectNumPlayers(4)) \
         .grid(row=1, column=3, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
-    inclusionFenceFrame = tk.LabelFrame (createFrame, text ='Definición de los límites del escenario')
-    inclusionFenceFrame.grid(row=3, column=0, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-    inclusionFenceFrame.rowconfigure(0, weight=1)
-    inclusionFenceFrame.columnconfigure(0, weight=1)
-    inclusionFenceFrame.columnconfigure(1, weight=1)
-    # el fence de inclusión puede ser un poligono o un círculo
-    # el parámetro 1 en el command indica que es fence de inclusion
-    polyInclusionFenceBtn = tk.Button(inclusionFenceFrame, text="Polígono", bg="dark orange", command = lambda:  definePoly (1))
-    polyInclusionFenceBtn.grid(row=0, column=0, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-    circleInclusionFenceBtn = tk.Button(inclusionFenceFrame, text="Círculo", bg="dark orange", command = lambda:  defineCircle (1))
-    circleInclusionFenceBtn.grid(row=0, column=1, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-
     # los obstacilos son fences de exclusión y pueden ser también polígonos o círculos
     # el parámetro 2 en el command indica que son fences de exclusión
     obstacleFrame = tk.LabelFrame(createFrame, text='Definición de los obstaculos del escenario')
-    obstacleFrame.grid(row=4, column=0, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    obstacleFrame.grid(row=3, column=0, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
     obstacleFrame.rowconfigure(0, weight=1)
     obstacleFrame.columnconfigure(0, weight=1)
     obstacleFrame.columnconfigure(1, weight=1)
 
-    polyObstacleBtn = tk.Button(obstacleFrame, text="Polígono", bg="dark orange", command = lambda: definePoly (2))
+    polyObstacleBtn = tk.Button(obstacleFrame, text="Polígono", bg="dark orange", command =  definePoly)
     polyObstacleBtn.grid(row=0, column=0, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-    circleObstacleBtn = tk.Button(obstacleFrame, text="Círculo", bg="dark orange", command=lambda: defineCircle(2))
+    circleObstacleBtn = tk.Button(obstacleFrame, text="Círculo", bg="dark orange", command= defineCircle)
     circleObstacleBtn.grid(row=0, column=1, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
     registerBtn = tk.Button(createFrame, text="Registra escenario", bg="dark orange", command = registerScenario)
-    registerBtn.grid(row=5, column=0, padx=5, pady=5, sticky=tk.N +tk.E + tk.W)
+    registerBtn.grid(row=4, column=0, padx=5, pady=5, sticky=tk.N +tk.E + tk.W)
 
     clearBtn = tk.Button(createFrame, text="Limpiar", bg="dark orange", command=clear)
-    clearBtn.grid(row=6, column=0, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    clearBtn.grid(row=5, column=0, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
     ################################ frame para seleccionar escenarios ############################################
     selectFrame = tk.LabelFrame(controlFrame, text='Selecciona escenario')
@@ -1395,7 +1358,7 @@ def crear_ventana():
     # conectadas las radios de telemetría
     def ask_Ports():
         global comPorts
-        comPorts = askstring('Puertos', "Indica los puertos COM separados por comas (por ejemplo: 'COM3,COM21,COM7')")
+        comPorts = askstring('Puerto', "Indica el puerto COM (por ejemplo COM21)")
 
     option2 = tk.Radiobutton(connectFrame, text="Producción", variable=connectOption, value="Production",
                              command=ask_Ports)
@@ -1417,8 +1380,7 @@ def crear_ventana():
     superviseFrame.rowconfigure(1, weight=1)
     superviseFrame.rowconfigure(2, weight=1)
     superviseFrame.rowconfigure(3, weight=1)
-    superviseFrame.rowconfigure(4, weight=1)
-    superviseFrame.rowconfigure(5, weight=1)
+
 
     superviseFrame.columnconfigure(0, weight=1)
     superviseFrame.columnconfigure(1, weight=1)
@@ -1427,17 +1389,29 @@ def crear_ventana():
 
     parametersBtn = tk.Button(superviseFrame, text="Ajustar parámetros", bg="dark orange", command=adjustParameters)
     parametersBtn.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-    # debajo de este label colocaremos botones para aterrizar los drones.
-    # los colocaremos cuando sepamos cuántos drones tenemos en el enjambre
-    tk.Label(superviseFrame, text='Aterrizar') \
-        .grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+    controlesFrame = tk.LabelFrame(superviseFrame, text='Controles')
+    controlesFrame.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    controlesFrame.rowconfigure(0, weight=1)
+    controlesFrame.rowconfigure(1, weight=1)
+    controlesFrame.rowconfigure(2, weight=1)
+    controlesFrame.rowconfigure(3, weight=1)
+    controlesFrame.columnconfigure(0, weight=1)
+
+
     # debajo de este label colocaremos las alturas en las que están los drones
     # las colocaremos cuando sepamos cuántos drones tenemos en el enjambre
-    tk.Label(superviseFrame, text='Altitudes') \
-        .grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    telemetriaFrame = tk.LabelFrame(superviseFrame, text='Telemetría (altitud y modo de vuelo')
+    telemetriaFrame.grid(row=2, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    telemetriaFrame.rowconfigure(0, weight=1)
+    telemetriaFrame.rowconfigure(1, weight=1)
+    telemetriaFrame.columnconfigure(0, weight=1)
+    # Aqui guardaremos los labels para mostrar los datos de telemetría
+    altitudLab = None
+    modoLab = None
 
     showQRBtn = tk.Button(superviseFrame, text="Mostrar código QR de mobile web APP", bg="dark orange", command=showQR)
-    showQRBtn.grid(row=5, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    showQRBtn.grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
     #################### Frame para el mapa, en la columna de la derecha #####################
     mapaFrame = tk.LabelFrame(ventana, text='Mapa')
@@ -1459,42 +1433,29 @@ def crear_ventana():
     map_widget.add_right_click_menu_command(label="Cierra el fence", command=closeFence, pass_coords=True)
     map_widget.add_left_click_map_command(getFenceWaypoint)
 
-    # ahora cargamos las imagenes de los iconos que vamos a usar
 
-    # iconos para representar cada dron (circulo de color) y para marcar su rastro (círculo más pequeño del mismo color)
+    # iconos para marcar áreas, cada una con su color
     im = Image.open("images/red.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     red = ImageTk.PhotoImage(im_resized)
-    im_resized_plus = im.resize((10, 10), Image.LANCZOS)
-    littleRed = ImageTk.PhotoImage(im_resized_plus)
 
     im = Image.open("images/blue.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     blue = ImageTk.PhotoImage(im_resized)
-    im_resized_plus = im.resize((10, 10), Image.LANCZOS)
-    littleBlue = ImageTk.PhotoImage(im_resized_plus)
 
     im = Image.open("images/green.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     green = ImageTk.PhotoImage(im_resized)
-    im_resized_plus = im.resize((10, 10), Image.LANCZOS)
-    littleGreen = ImageTk.PhotoImage(im_resized_plus)
-
 
     im = Image.open("images/yellow.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     yellow = ImageTk.PhotoImage(im_resized)
-    im_resized_plus = im.resize((10, 10), Image.LANCZOS)
-    littleYellow = ImageTk.PhotoImage(im_resized_plus)
-
 
     im = Image.open("images/black.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     black = ImageTk.PhotoImage(im_resized)
 
-    dronPictures = [red, blue, green, yellow]
-    # para dibujar los rastros
-    dronLittlePictures = [littleRed, littleBlue, littleGreen, littleYellow]
+
 
     # nos conectamos al broker para recibir las ordenes de los que vuelan con la web app
     clientName = "multiPlayerDash" + str(random.randint(1000, 9000))

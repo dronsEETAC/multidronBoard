@@ -11,7 +11,7 @@ from PIL import Image, ImageTk
 import pyautogui
 import win32gui
 import glob
-from dronLink.Dron import Dron
+from dronLink_old.Dron import Dron
 import geopy.distance
 from geographiclib.geodesic import Geodesic
 
