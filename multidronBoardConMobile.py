@@ -20,6 +20,7 @@ import paho.mqtt.client as mqtt
 from dronLink.Dron import Dron
 import geopy.distance
 from geographiclib.geodesic import Geodesic
+from ParameterManager import ParameterManager
 
 '''
 Ejemplo de estructura de datos que representa un escenario para múltiples jugadores (multi escenario).
@@ -159,7 +160,7 @@ El resto (si hay) son fences que representan obstáculos y pueden ser polígonos
   ]
 }
 '''
-
+'''
 
 # clase para gestionar los parámetros del dron
 class ParameterManager:
@@ -350,7 +351,7 @@ class ParameterManager:
             dronManager.on_off =  self.on_off
             dronManager.on_offBtn['text'] = self.on_offBtn['text']
             dronManager.on_offBtn['bg'] =  self.on_offBtn['bg']
-
+'''
 def haversine(lat1, lon1, lat2, lon2):
     # Radio de la Tierra en metros
     R = 6371000
