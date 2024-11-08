@@ -677,12 +677,14 @@ def drawCircuit (selectedCircuitPoints):
             i = i + 4
         external.append(selectedCircuitPoints[len(selectedCircuitPoints) - 2])
         internal.append(selectedCircuitPoints[len(selectedCircuitPoints) - 1])
+    for i in range (len (external)-1):
+        polys.append(map_widget.set_path ([external[i], external[i+1]], color ='red',width=3))
+    polys.append(map_widget.set_path([external[-1], external[0]], color='red', width = 3))
 
-    polys.append(map_widget.set_polygon(external, outline_color='red',
-                                        border_width=3))
+    for i in range(len(internal) - 1):
+        polys.append(map_widget.set_path([internal[i], internal[i + 1]], color='blue', width=3))
+    polys.append(map_widget.set_path([internal[-1], internal[0]], color='blue', width=3))
 
-    polys.append(map_widget.set_polygon(internal, outline_color='blue',
-                                        border_width=3))
 
     scenario = []
     fence = {
@@ -826,11 +828,41 @@ def startDesign ():
     polys = []
     closed = False
 
+def fixError ():
+    # a veces pasa algo raro al clicar el mouse y se descontrola, quedando afectada la primera zona
+    # aqui eliminamos los datos de la primera zona para eliminar ese mal funcionamiento
+    global points, zones, polys
+
+    zones = zones[1:]
+    polys[0].delete()
+    polys = polys[1:]
+    points = points [2:]
+
+
+def deleteLast ():
+    # elimino el resultado del ultimo click
+    global points, zones, polys , markers
+
+    if len (points) > 4 and len(points)% 2 == 0:
+        points.pop()
+        points.pop ()
+        zones.pop()
+        item = polys.pop ()
+        item.delete()
+    else:
+        points.pop()
+        item =markers.pop()
+        item.delete()
+
+
+
+
 def getFenceWaypoint (coords):
-    global markers,zones, closed, points
+    global markers,zones, closed, points, polys
     # acabo de clicar con el botón izquierdo
     if not closed:
         points.append(coords)
+        print('len ', len(points))
         marker = map_widget.set_marker(coords[0], coords[1], icon=black, icon_anchor="center")
         markers.append (marker)
         if len (points) == 4:
@@ -850,9 +882,7 @@ def getFenceWaypoint (coords):
             zones.append(zone)
     else:
         point = Point(coords[0], coords[1])
-
         for i in range (0,len(zones)):
-            print ('aaaa', zones[i])
             polygon = Polygon(zones[i])
             if polygon.contains(point):
                 print (' Esta en la zona ', i)
@@ -860,7 +890,7 @@ def getFenceWaypoint (coords):
 
 def closeCircuit(coords):
     global closed
-
+    print ('closeeeeeeeeeee')
     pos = len (points)
     if pos%4 == 0:
         polys.append(map_widget.set_polygon([points [pos-2], points [pos-1], points [0], points[1]], outline_color='black', border_width=1))
@@ -1085,23 +1115,31 @@ def crear_ventana():
     createFrame.rowconfigure(9, weight=1)
     createFrame.columnconfigure(0, weight=1)
     createFrame.columnconfigure(1, weight=1)
+    createFrame.columnconfigure(2, weight=1)
+    createFrame.columnconfigure(2, weight=1)
 
     tk.Label (createFrame, text='Escribe el nombre aquí')\
-        .grid(row=0, column=0, columnspan = 2, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        .grid(row=0, column=0, columnspan = 4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
     # el nombre se usará para poner nombre al fichero con la imagen y al fichero json con el circuito
     name = tk.StringVar()
     tk.Entry(createFrame, textvariable=name)\
-        .grid(row=1, column=0, columnspan = 2, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+        .grid(row=1, column=0, columnspan = 4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
-    startDesignBtn = tk.Button(createFrame, text="Inicia el diseño", bg="dark orange",
+    startDesignBtn = tk.Button(createFrame, text="Inicia \nel diseño", bg="dark orange",
                                       command= startDesign)
     startDesignBtn.grid(row=2, column=0, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-    cleanDesignBtn = tk.Button(createFrame, text="Borra diseño", bg="dark orange",
+    cleanDesignBtn = tk.Button(createFrame, text="Borra \ndiseño", bg="dark orange",
                                       command= cleanDesign)
     cleanDesignBtn.grid(row=2, column=1, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    deleteLastBtn = tk.Button(createFrame, text="Borra \núltimo punto", bg="dark orange",
+                               command=deleteLast)
+    deleteLastBtn.grid(row=2, column=2, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    fixErrorBtn = tk.Button(createFrame, text="Corregir \nerror", bg="dark orange",
+                               command=fixError)
+    fixErrorBtn.grid(row=2, column=3, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
     registerCircuitBtn = tk.Button(createFrame, text="Guardar circuito", bg="dark orange", command = registerCircuit)
-    registerCircuitBtn.grid(row=3, column=0, columnspan = 2, padx=5, pady=5, sticky=tk.N +tk.E + tk.W)
+    registerCircuitBtn.grid(row=3, column=0, columnspan = 4, padx=5, pady=5, sticky=tk.N +tk.E + tk.W)
 
 
     ################################ frame para seleccionar circuito ############################################
