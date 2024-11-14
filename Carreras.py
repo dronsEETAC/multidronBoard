@@ -19,6 +19,7 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 import paho.mqtt.client as mqtt
 from ParameterManager import ParameterManager
+from AutopilotControllerClass import AutopilotController
 
 '''
 Ejemplo de estructura de datos que representa un escenario para múltiples jugadores (multi escenario).
@@ -159,13 +160,28 @@ El resto (si hay) son fences que representan obstáculos y pueden ser polígonos
 }
 '''
 
-#procesado de los datos de telemetría
+##################### Procesado de los datos de telemetría
+def runAgain (id, params):
+    # cuando el dron atrapado haya aterrizado vengo aquí
+    i = params[0] # dron que a pillado al atrapado
+    flightMode = params[1] # modo de vuelo que tenía el dron que ha pillado (y que ahora está en BRAKE)
+    swarm[i].setFlightMode(flightMode) # recupero el modo que tenía
+    j = params[2] # dron que ha sido atrapado
+    dronIcons[j].delete() # elimino el icono del dron atrapado
+    # coloco el icono del dron atrapado (una circunferencia del color adecuado en vez de un circulo)
+    # ATENCION: no importa dónde coloque el icono porque pronto tendremos un paquete de telemetría del dron j
+    # que movera el icono al sitio en el que está realmente el dron
+    dronIcons[j] = map_widget.set_marker(0, 0,
+                                         icon=dronPictures_lines[j], icon_anchor="center")
+
 def processTelemetryInfo (id, telemetry_info):
     global dronIcons, myZone, myZoneWidget
     # recupero la posición en la que está el dron
     lat = telemetry_info['lat']
     lon = telemetry_info['lon']
     alt = telemetry_info['alt']
+    modo = telemetry_info['flightMode']
+
 
     # si es el primer paquete de este dron entonces ponemos en el mapa el icono de ese dron
     if not dronIcons[id]:
@@ -174,39 +190,53 @@ def processTelemetryInfo (id, telemetry_info):
     # si no es el primer paquete entonces muevo el icono a la nueva posición
     else:
         dronIcons[id].set_position(lat,lon)
-    # actrualizo la altitud
-    altitudes[id]['text'] = str (round(alt,2))
+    # actrualizo la altitud y el modo de vuelo
+    altitudes[id]['text'] = str(round(alt, 2))
+    modos[id]['text'] = modo
 
-    point = Point(lat,lon)
+    # si estamos ya en carrera y este dron no ha sido pillado aún...
+    if running and myZone[id] != -1:
+        # miro en qué zona está
+        point = Point(lat,lon)
+        for i in range(0, len(zones)):
+            polygon = Polygon([zones[i][0],zones[i][1],zones[i][2],zones[i][3]])
+            if polygon.contains(point):
+                # está en la zona i
+                if myZone[id] != i:
+                    # ha cambiado de zona
+                    myZone[id] = i
+                    # elimino el rectangulo que colorea la zona que abandona
+                    if myZoneWidget[id]:
+                        myZoneWidget[id].delete()
+                    # coloreo la zona en la que entra
+                    myZoneWidget[id] = map_widget.set_polygon([zones[i][0],zones[i][1],zones[i][2],zones[i][3]],
+                                                              outline_color=colors[id], fill_color = colors[id] ,
+                                                              border_width=1)
 
-    for i in range(0, len(zones)):
-        polygon = Polygon([zones[i][0],zones[i][1],zones[i][2],zones[i][3]])
-        if polygon.contains(point):
-            if myZone[id] != i:
-                myZone[id] = i
-                if myZoneWidget[id]:
-                    myZoneWidget[id].delete()
-                    #print('El dron  ', id, 'esta en la zona', i)
-                myZoneWidget[id] = map_widget.set_polygon([zones[i][0],zones[i][1],zones[i][2],zones[i][3]], outline_color=colors[id], fill_color = colors[id] , border_width=1)
-
-    # veamos si algun dron ha atrapado a alguno de sus rivales
-    for i in range (0,len(swarm)):
-        # veamos si el dron i ha atrapado a alguien
-        if myZone [i]:
+        # veamos si el dron  ha atrapado a alguien
+        if myZone [id]:
             for j in range(0, len(swarm)):
-                if i!= j and myZone[j]:
-                    # veamos si el dron i ha atrapado al dron j
-                    if (myZone[j] - myZone[i]) % len(zones) == 1:
-                        swarm[j].Land(blocking=False)
+                if id!= j and myZone[j] and  myZone[j] != -1:
+                    # veamos si el dron id ha atrapado al dron j
+                    if (myZone[id] + 1) % len(zones) == myZone[j]:
+                        # si que lo ha atrapado
+                        # me guardo el modo de vuelo para recuperarlo luego
+                        # (será GUIDED si volamos con el movil o LOITER si volamos con la emisora)
+                        flightMode =  swarm[id].flightMode
+                        # detengo el dron
+                        swarm[id].setFlightMode ('BRAKE')
+                        # marco el dron que ha sido alcanzado
+                        myZone [j] = -1
+                        # y lo hago arerrizar
+                        swarm[j].Land(blocking=False, callback = runAgain, params = [id,flightMode,j])
+                        # elimino la zona coloreada del dron atrapado
+                        myZoneWidget[j].delete()
 
 
-########## Funciones para la creación de multi escenarios #################################
+############# Funciones para crear el circuito  ###########################################
 
 def createBtnClick ():
-    global scenario, polys, markers
-    scenario = []
-    # limpiamos el mapa de los elementos que tenga
-    clear()
+
     # quitamos los otros frames
     selectFrame.grid_forget()
     superviseFrame.grid_forget()
@@ -226,56 +256,210 @@ def createBtnClick ():
     superviseBtn['bg'] = 'dark orange'
 
 
+def startDesign():
+    global markers, points, zones, closed, polys
+    messagebox.showinfo("showinfo",
+                        "Con el boton izquierdo señala los puntos que definen las zonas\n"
+                        "Con el boton derecho indica el fin del diseño\n"
+                        "Empieza marcando un punto del exterior del circuito")
+    points = []
+    markers = []
+    zones = []
+    polys = []
+    closed = False
 
-# cerramos el fence
-def closeFence(coords):
-    global poly, polys, fence, zonas, cerrado
-    pos = len(puntos)
-    print (pos)
-    if pos%4 == 0:
-        map_widget.set_polygon([puntos [pos-2], puntos [pos-1], puntos [0], puntos[1]], outline_color='black', border_width=1)
-        zonas.append ([puntos [pos-2], puntos [pos-1], puntos [0], puntos[1]])
+
+def fixError():
+    # a veces pasa algo raro al clicar el mouse y se descontrola, quedando afectada la primera zona
+    # aqui eliminamos los datos de la primera zona para eliminar ese mal funcionamiento
+    global points, zones, polys
+
+    zones = zones[1:]
+    polys[0].delete()
+    polys = polys[1:]
+    points = points[2:]
+
+
+def deleteLast():
+    # elimino el resultado del ultimo click
+    global points, zones, polys, markers
+
+    if len(points) > 4 and len(points) % 2 == 0:
+        points.pop()
+        points.pop()
+        zones.pop()
+        item = polys.pop()
+        item.delete()
     else:
-        map_widget.set_polygon([puntos[pos - 2], puntos[pos - 1], puntos[1], puntos[0]], outline_color='black',
-                               border_width=1)
-        zonas.append ([puntos [pos-2], puntos [pos-1], puntos [1], puntos[0]])
+        points.pop()
+        item = markers.pop()
+        item.delete()
+
+
+def getFenceWaypoint(coords):
+    # los 4 primeros puntos que marque definen la primera zona del cicuito
+    # a partir de ahí cada dos nuevos puntos defienen la siguiente zona
+    global markers, zones, closed, points, polys
+    # acabo de clicar con el botón izquierdo
+    if not closed:
+        points.append(coords)
+        marker = map_widget.set_marker(coords[0], coords[1], icon=black, icon_anchor="center")
+        markers.append(marker)
+        if len(points) == 4:
+            # acabo de definir la primera zona
+            polys.append(map_widget.set_polygon(points, outline_color='black', border_width=1))
+            for marker in markers:
+                marker.delete()
+            markers = []
+            zone = [point for point in points]
+            zones.append(zone)
+        elif len(points) > 4 and len(points) % 2 == 0:
+            # acabo de definir el segundo punto que define la siguiente zona
+            pos = len(points)
+            # los 4 ultimos puntos marcados definen la siguiente zona
+            polys.append(map_widget.set_polygon(points[pos - 4: pos], outline_color='black', border_width=1))
+            for marker in markers:
+                marker.delete()
+            markers = []
+            zone = [point for point in points[pos - 4: pos]]
+            zones.append(zone)
+    else:
+        # esto me sirve de control
+        # si una vez cerrado el circuito clico en una zona me pone en consola el numero de zona
+        point = Point(coords[0], coords[1])
+        for i in range(0, len(zones)):
+            polygon = Polygon(zones[i])
+            if polygon.contains(point):
+                print(' Esta en la zona ', i)
+
+
+def closeCircuit(coords):
+    # al clicar el boton derecho indico que quiero cerrar el circuito
+    # para eso debo definir la siguiente zona, que está delimitada por los dos ultimos puntos que he marcado y los
+    # dos primeros puntos que marqué
+    global closed
+    pos = len(points)
+    # La ordenación de los puntos para delimitar la ultima zona depende de la paridad del número de zonas
+    if pos % 4 == 0:
+        polys.append(
+            map_widget.set_polygon([points[pos - 2], points[pos - 1], points[0], points[1]], outline_color='black',
+                                   border_width=1))
+        zones.append([points[pos - 2], points[pos - 1], points[0], points[1]])
+    else:
+        polys.append(
+            map_widget.set_polygon([points[pos - 2], points[pos - 1], points[1], points[0]], outline_color='black',
+                                   border_width=1))
+        zones.append([points[pos - 2], points[pos - 1], points[1], points[0]])
+
+    # una vez definidas las zonas ya puedo determinar los bordes del circuito.
+    # El borde exterior se convertirá en su momento en un geofence de inclusión
+    # y el borde interior en un geofence de exclusión
 
     i = 0
-    externo = []
-    interno = []
-    while i < len(puntos):
-        externo.append(puntos[i])
-        externo.append(puntos [i+3])
-        interno.append (puntos[i+1])
-        interno.append(puntos[i+2])
-        i = i+4
-    map_widget.set_polygon(externo, outline_color='red',
-                           border_width=3)
+    external = []
+    internal = []
+    if len(zones) % 2 == 0:
+        while i < len(points):
+            external.append(points[i])
+            external.append(points[i + 3])
+            internal.append(points[i + 1])
+            internal.append(points[i + 2])
+            i = i + 4
+    else:
+        while i < len(points) - 2:
+            external.append(points[i])
+            external.append(points[i + 3])
+            internal.append(points[i + 1])
+            internal.append(points[i + 2])
+            i = i + 4
+        external.append(points[len(points) - 2])
+        internal.append(points[len(points) - 1])
 
-    map_widget.set_polygon(interno, outline_color='blue',
-                           border_width=3)
-    cerrado = True
+    # pinto en rojo el borde exterior
+    polys.append(map_widget.set_polygon(external, outline_color='red',
+                                        border_width=3))
+    # pinto en azul el borde interior
+    polys.append(map_widget.set_polygon(internal, outline_color='blue',
+                                        border_width=3))
+    closed = True
 
-# genera el poligono que aproxima al círculo
-'''def getCircle ( lat, lon, radius):
-    # aquí creo el polígono que aproxima al círculo
-    geod = Geodesic.WGS84
+
+def cleanDesign():
+    global polys, points, markers, zones, closed
+    for poly in polys:
+        poly.delete()
     points = []
-    for angle in range(0, 360, 5):  # 5 grados de separación para suavidad
-        # me da las coordenadas del punto que esta a una distancia radius del centro (lat, lon) con el ángulo indicado
-        g = geod.Direct(lat, lon, angle, radius)
-        lat2 = float(g["lat2"])
-        lon2 = float(g["lon2"])
-        points.append((lat2, lon2))
-    return points
-'''
+    markers = []
+    zones = []
+    polys = []
+    closed = False
+
+
+# La siguiente función crea una imagen capturando el contenido de una ventana
+
+def screenshot(window_title=None):
+    # capturo una imagen del multi escenario para guardarla más tarde
+    if window_title:
+        hwnd = win32gui.FindWindow(None, window_title)
+        if hwnd:
+            win32gui.SetForegroundWindow(hwnd)
+            x, y, x1, y1 = win32gui.GetClientRect(hwnd)
+            x, y = win32gui.ClientToScreen(hwnd, (x, y))
+            x1, y1 = win32gui.ClientToScreen(hwnd, (x1 - x, y1 - y))
+            # aquí le indico la zona de la ventana que me interesa, que es básicamente la zona del dronLab
+            im = pyautogui.screenshot(region=(x + 800, y + 250, 750, 580))
+            return im
+        else:
+            print('Window not found!')
+    else:
+        im = pyautogui.screenshot()
+        return im
+
+
+# guardamos los datos del escenario (imagen y fichero json)
+def registerCircuit():
+    # voy a guardar el multi escenario en el fichero con el nombre indicado en el momento de la creación
+    jsonFilename = 'circuits/' + name.get() + ".json"
+
+    with open(jsonFilename, 'w') as f:
+        json.dump(points, f)
+    # aqui capturo el contenido de la ventana que muestra el Camp Nou (zona del cesped, que es dónde está el escenario)
+    im = screenshot('Gestión de circuitos')
+    imageFilename = 'circuits/' + name.get() + ".png"
+    im.save(imageFilename)
+
+    cleanDesign()
+
+
+def publish_landed(id):
+    client.publish('multiPlayerDash/mobileApp/landed/' + str(id))
+
+
+def RTL4Land(id):
+    # esto es lo que quiero que haga el autopilot service (ordenar un Land)
+    # en caso de que se clique Return to Launch en un movil
+    dron = swarm[id]
+    if dron.state == 'flying':
+        # operación no bloqueante. Cuando acabe publicará el evento correspondiente
+        dron.Land(blocking=False, callback=publish_landed)
+
+
+def setNumPlayers(n):
+    global numPlayers, client, swarm
+    numPlayers = n
+    # voy a cambiar la funcionalidad del boton de Return to Launch de la web app
+    # un RTL es peligroso porque puede provocar un choque de drones
+    # el boton hará un land
+    additionalEvents = [
+        {'event': 'RTL', 'method': RTL4Land}
+    ]
+    autopilotService = AutopilotController(numPlayers, numPlayers, additionalEvents)
+    client, swarm = autopilotService.start()
 
 
 
-############################ Funciones para seleccionar multi escenario ##########################################
+############################ Funciones para seleccionar el circuito ##########################################
 def selectBtnClick ():
-    global scenarios, current, polys
-    scenarios = []
     # limpio el mapa
     cleanDesign()
     # elimino los otros frames
@@ -432,26 +616,27 @@ def drawCircuit (selectedCircuitPoints):
     # borro los elementos que haya en el mapa
     for poly in polys:
         poly.delete()
+    # reconstruyo las zonas
+    # la primera está formada por los 4 primeros puntos
+    # las siguientes quedan definidas por los dos ultimos puntos de la zona
+    # anterior y los dos puntos siguientes de la lista
     zones = []
     i=0
     while i < len(selectedCircuitPoints) -2:
         zone = []
         for point in selectedCircuitPoints[i:i + 4]:
             zone.append ((point[0], point[1]))
-        print ('zone ', zone)
         zones.append(zone)
         polys.append(map_widget.set_polygon(zone, outline_color='black', border_width=1))
         i = i+2
 
+    # la ultima zona se define dependiendo de la paridad del número de puntos
     pos = len(selectedCircuitPoints)
     if pos % 4 == 0:
         zone = [(selectedCircuitPoints[pos - 2][0], selectedCircuitPoints[pos - 2][1]),
                 (selectedCircuitPoints[pos - 1][0], selectedCircuitPoints[pos - 1][1]),
                 (selectedCircuitPoints[0][0], selectedCircuitPoints[0][1]),
                 (selectedCircuitPoints[1][0], selectedCircuitPoints[1][1])]
-
-
-        #zone = [selectedCircuitPoints[pos - 2], selectedCircuitPoints[pos - 1], selectedCircuitPoints[0], selectedCircuitPoints[1]]
         zones.append(zone)
         polys.append(
             map_widget.set_polygon(zone, outline_color='black',
@@ -468,6 +653,7 @@ def drawCircuit (selectedCircuitPoints):
             map_widget.set_polygon(zone, outline_color='black',
                                    border_width=1))
 
+    # ahora recuperamos el borde externo y el borde interno
     i = 0
     external = []
     internal = []
@@ -496,6 +682,9 @@ def drawCircuit (selectedCircuitPoints):
         polys.append(map_widget.set_path([internal[i], internal[i + 1]], color='blue', width=3))
     polys.append(map_widget.set_path([internal[-1], internal[0]], color='blue', width=3))
 
+    # ahora preparamos el escenario que habrá que enviar a los drones
+    # el esceario es el mismo para todos. Tiene un geofence de inclusión (el borde externo)
+    # y uno de exclusión (el borde interno)
 
     scenario = []
     fence = {
@@ -514,9 +703,8 @@ def drawCircuit (selectedCircuitPoints):
     scenario.append (fence)
 
 
-# envia los datos del  escenario seleccionado al enjambre
 def sendCircuit ():
-    # enviamos a cada dron del enjambre el escenario que le toca
+    # enviamos el esenario a todos los drones
     global swarm
     global connected, dron, dronIcons
     global altitudes, scenario
@@ -526,13 +714,11 @@ def sendCircuit ():
 
     sendBtn['bg'] = 'green'
 
-
-
-# me contecto a los drones del enjambre
 def connect ():
     global swarm
     global connected, dron, dronIcons
-    global altitudes, colors
+    global altitudes, modos, colors
+    global telemetriaFrame, controlesFrame
 
     if not connected:
 
@@ -553,24 +739,37 @@ def connect ():
 
         colors = ['red', 'blue', 'green', 'yellow']
         altitudes = []
+        modos = []
 
-        # creamos el enjambre
-        swarm = []
         dronIcons = [None, None, None, None]
+
+        textColor = 'white'
 
         for i in range(0, numPlayers):
             # identificamos el dron
-            dron = Dron(i)
-            swarm.append(dron)
+            dron = swarm[i]
+            dron.changeNavSpeed(1) # que vuele a 1 m/s
             # nos conectamos
+            print ('voy a onectar ', i, connectionStrings[i], baud)
             dron.connect(connectionStrings[i], baud)
-            # colocamos los botones para aterrizar, cada uno con el color que toca
-            tk.Button(superviseFrame, bg=colors[i],
-                          command=lambda d=swarm[i]: d.Land(blocking=False)) \
+            print ('conectado')
+            if i == 3:
+                textColor = 'black'
+            # colocamos los botones para aterrizar y cambiar de modo, cada uno con el color que toca
+            tk.Button(controlesFrame, bg=colors[i], fg=textColor, text='Aterrizar',
+                      command=lambda d=swarm[i]: d.Land(blocking=False)) \
+                .grid(row=0, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            tk.Button(controlesFrame, bg=colors[i], fg=textColor, text='Modo guided',
+                      command=lambda d=swarm[i]: d.setFlightMode('GUIDED')) \
+                .grid(row=1, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            tk.Button(controlesFrame, bg=colors[i], fg=textColor, text='Modo brake',
+                      command=lambda d=swarm[i]: d.setFlightMode('BRAKE')) \
                 .grid(row=2, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
             # colocamos las labels para mostrar las alturas de los drones
-            altitudes.append(tk.Label(superviseFrame, text='', borderwidth=1, relief="solid"))
-            altitudes[-1].grid(row=4, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            altitudes.append(tk.Label(telemetriaFrame, text='', borderwidth=1, relief="solid"))
+            altitudes[-1].grid(row=0, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            modos.append(tk.Label(telemetriaFrame, text='', borderwidth=1, relief="solid"))
+            modos[-1].grid(row=1, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
             # solicitamos datos de telemetria del dron
             dron.send_telemetry_info(processTelemetryInfo)
 
@@ -580,7 +779,7 @@ def connect ():
 
 
 
-################### Funciones para supervisar el multi escenario #########################
+################### Funciones para supervisar la carrera #########################
 
 def superviseBtnClick ():
 
@@ -626,231 +825,30 @@ def adjustParameters ():
 
     parameterManagementWindow.mainloop()
 
-############# Funciones para crear el circuito  ###########################################333
-def startDesign ():
-    global markers, points, zones, closed, polys
-    messagebox.showinfo("showinfo",
-                        "Con el boton izquierdo señala los puntos que definen las zonas\n"
-                        "Con el boton derecho indica el fin del diseño\n"
-                        "Empieza marcando un punto del exterior del circuito")
-    points = []
-    markers = []
-    zones = []
-    polys = []
-    closed = False
 
-def fixError ():
-    # a veces pasa algo raro al clicar el mouse y se descontrola, quedando afectada la primera zona
-    # aqui eliminamos los datos de la primera zona para eliminar ese mal funcionamiento
-    global points, zones, polys
+def showQR():
+    global QRimg
+    QRWindow = tk.Toplevel()
+    QRWindow.title("Código QR para mobile web app")
+    QRWindow.rowconfigure(0, weight=1)
+    QRWindow.rowconfigure(1, weight=1)
+    QRWindow.columnconfigure(0, weight=1)
 
-    zones = zones[1:]
-    polys[0].delete()
-    polys = polys[1:]
-    points = points [2:]
+    QRimg = Image.open("images/QR.png")
+    QRimg = ImageTk.PhotoImage(QRimg)
+    label = tk.Label(QRWindow, image=QRimg)
+    label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.N + tk.E +tk.S+ tk.W)
 
+    closeBtn = tk.Button(QRWindow, text="Cerrar", bg="dark orange", command = lambda: QRWindow.destroy())
+    closeBtn.grid(row=1, column=0, padx=5, pady=5, sticky=tk.N + tk.E +tk.S+tk.W)
 
-def deleteLast ():
-    # elimino el resultado del ultimo click
-    global points, zones, polys , markers
+    QRWindow.mainloop()
 
-    if len (points) > 4 and len(points)% 2 == 0:
-        points.pop()
-        points.pop ()
-        zones.pop()
-        item = polys.pop ()
-        item.delete()
-    else:
-        points.pop()
-        item =markers.pop()
-        item.delete()
-
-
-
-
-def getFenceWaypoint (coords):
-    global markers,zones, closed, points, polys
-    # acabo de clicar con el botón izquierdo
-    if not closed:
-        points.append(coords)
-        print('len ', len(points))
-        marker = map_widget.set_marker(coords[0], coords[1], icon=black, icon_anchor="center")
-        markers.append (marker)
-        if len (points) == 4:
-            polys.append(map_widget.set_polygon(points, outline_color='black',border_width=1))
-            for marker in markers:
-                marker.delete()
-            markers = []
-            zone = [ point for point in points]
-            zones.append (zone)
-        elif len (points) > 4 and len(points)% 2 == 0:
-            pos = len(points)
-            polys.append( map_widget.set_polygon(points[pos-4: pos], outline_color='black', border_width=1))
-            for marker in markers:
-                marker.delete()
-            markers = []
-            zone = [point for point in points[pos-4: pos]]
-            zones.append(zone)
-    else:
-        point = Point(coords[0], coords[1])
-        for i in range (0,len(zones)):
-            polygon = Polygon(zones[i])
-            if polygon.contains(point):
-                print (' Esta en la zona ', i)
-
-
-def closeCircuit(coords):
-    global closed
-    print ('closeeeeeeeeeee')
-    pos = len (points)
-    if pos%4 == 0:
-        polys.append(map_widget.set_polygon([points [pos-2], points [pos-1], points [0], points[1]], outline_color='black', border_width=1))
-        zones.append ([points [pos-2], points [pos-1], points [0], points[1]])
-    else:
-        polys.append(map_widget.set_polygon([points[pos - 2], points[pos - 1], points[1], points[0]], outline_color='black',
-                               border_width=1))
-        zones.append ([points [pos-2], points [pos-1], points [1], points[0]])
-
-    i = 0
-    external = []
-    internal = []
-    if len(zones)%2 == 0:
-        while i < len(points):
-            external.append(points[i])
-            external.append(points[i + 3])
-            internal.append(points[i + 1])
-            internal.append(points[i + 2])
-            i = i + 4
-    else:
-        while i < len(points)-2:
-            external.append(points[i])
-            external.append(points[i + 3])
-            internal.append(points[i + 1])
-            internal.append(points[i + 2])
-            i = i + 4
-        external.append(points[len(points)-2])
-        internal.append(points[len(points)-1])
-
-    polys.append(map_widget.set_polygon(external, outline_color='red',
-                           border_width=3))
-
-    polys.append(map_widget.set_polygon(internal, outline_color='blue',
-                           border_width=3))
-    closed = True
-# La siguiente función crea una imagen capturando el contenido de una ventana
-
-def cleanDesign ():
-    global polys, points, markers, zones, closed
-    for poly in polys:
-        poly.delete()
-    points = []
-    markers = []
-    zones = []
-    polys = []
-    closed = False
-
-def screenshot(window_title=None):
-    # capturo una imagen del multi escenario para guardarla más tarde
-    if window_title:
-        hwnd = win32gui.FindWindow(None, window_title)
-        if hwnd:
-            win32gui.SetForegroundWindow(hwnd)
-            x, y, x1, y1 = win32gui.GetClientRect(hwnd)
-            x, y = win32gui.ClientToScreen(hwnd, (x, y))
-            x1, y1 = win32gui.ClientToScreen(hwnd, (x1 - x, y1 - y))
-            # aquí le indico la zona de la ventana que me interesa, que es básicamente la zona del dronLab
-            im = pyautogui.screenshot(region=(x+800, y+250, 750, 580))
-            return im
-        else:
-            print('Window not found!')
-    else:
-        im = pyautogui.screenshot()
-        return im
-
-# guardamos los datos del escenario (imagen y fichero json)
-def registerCircuit ():
-
-    # voy a guardar el multi escenario en el fichero con el nombre indicado en el momento de la creación
-    jsonFilename = 'circuits/' + name.get() + ".json"
-
-    with open(jsonFilename, 'w') as f:
-        json.dump(points, f)
-    # aqui capturo el contenido de la ventana que muestra el Camp Nou (zona del cesped, que es dónde está el escenario)
-    im = screenshot('Gestión de circuitos')
-    imageFilename = 'circuits/'+name.get()+".png"
-    im.save(imageFilename)
-
-    cleanDesign()
-def setNumPlayers (n):
-    global numPlayers
-    numPlayers = n
-
-
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("connected OK Returned code=", rc)
-    else:
-        print("Bad connection Returned code=", rc)
-
-def publish_event (id, event):
-    # al ser drones idenificados dronLink nos pasa siempre en primer lugar el identificador
-    # del dron que ha hecho la operación
-    # lo necesito para identificar qué jugador debe hacer caso a la respuesta
-    global client
-    client.publish('multiPlayerDash/mobileApp/'+event+'/'+str(id))
-
-# aqui recibimos las publicaciones que hacen las web apps desde las que están jugando
-def on_message(client, userdata, message):
-    # el formato del topic siempre será:
-    # multiPlayerDash/mobileApp/COMANDO/NUMERO
-    # el número normalmente será el número del jugador (entre el 0 y el 3)
-    # excepto en el caso de la petición de conexión
-    global playersCount
-    parts = message.topic.split ('/')
-    command = parts[2]
-    if command == 'connect':
-        # el cuarto trozo del topic es un número aleatorio que debo incluir en la respuesta
-        # para que ésta sea tenida en cuenta solo por el jugador que ha hecho la petición
-        randomId = parts[3]
-        if playersCount == numPlayers:
-            # ya no hay sitio para más jugadores
-            client.publish('multiPlayerDash/mobileApp/notAccepted/'+randomId)
-        else:
-            # aceptamos y le asignamos el identificador del siguiente jugador
-            client.publish('multiPlayerDash/mobileApp/accepted/'+randomId, playersCount)
-            playersCount = playersCount+1
-
-    if command == 'arm_takeOff':
-        # en este comando y en los siguientes, el último trozo del topic identifica al jugador que hace la petición
-        id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'connected':
-            dron.arm()
-            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
-            dron.takeOff(5, blocking=False, callback=publish_event, params='flying')
-
-    if command == 'go':
-        id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'flying':
-            direction = message.payload.decode("utf-8")
-            dron.go(direction)
-
-    if command == 'Land':
-        id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'flying':
-            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
-            dron.Land(blocking=False, callback=publish_event, params='landed')
-
-    if command == 'RTL':
-        id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'flying':
-            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
-            dron.RTL(blocking=False, callback=publish_event, params='atHome')
-
-
+def start ():
+    # esto hará que empiezen a colorearse las zonas en las que estan los drones y a comparar las posiciones
+    # para ver si alguno a pillado a otro
+    global running
+    running = True
 
 
 
@@ -865,11 +863,15 @@ def crear_ventana():
     global paths, fence, polys
     global connected
     global selectPlayersFrame
-    global red, blue, green, yellow, black, dronPictures
+    global red, blue, green, yellow, black, dronPictures, dronPictures_lines
     global connectOption
     global numPlayers, playersCount
     global myZone, myZoneWidget
     global client
+    global running
+    global controlesFrame, telemetriaFrame
+
+    running = False
 
     myZone = [None]*4
     myZoneWidget = [None]*4
@@ -1050,14 +1052,36 @@ def crear_ventana():
 
     parametersBtn = tk.Button(superviseFrame, text="Ajustar parámetros", bg="dark orange", command=adjustParameters)
     parametersBtn.grid(row=0, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-    # debajo de este label colocaremos botones para aterrizar los drones.
-    # los colocaremos cuando sepamos cuántos drones tenemos en el enjambre
-    tk.Label(superviseFrame, text='Aterrizar') \
-        .grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
-    # debajo de este label colocaremos las alturas en las que están los drones
-    # las colocaremos cuando sepamos cuántos drones tenemos en el enjambre
-    tk.Label(superviseFrame, text='Altitudes') \
-        .grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+    controlesFrame = tk.LabelFrame(superviseFrame, text='Controles')
+    controlesFrame.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    # en este frame colocaremos los botones para aterrizar y cambiar modos de cada dron
+    controlesFrame.rowconfigure(0, weight=1)
+    controlesFrame.rowconfigure(1, weight=1)
+    controlesFrame.rowconfigure(2, weight=1)
+    controlesFrame.columnconfigure(0, weight=1)
+    controlesFrame.columnconfigure(1, weight=1)
+    controlesFrame.columnconfigure(2, weight=1)
+    controlesFrame.columnconfigure(3, weight=1)
+
+
+    telemetriaFrame = tk.LabelFrame(superviseFrame, text='Telemetría (altitud y modo de vuelo')
+    telemetriaFrame.grid(row=2, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    # en este frame colocaremos la altitud y el modo de vuelo de cada dron
+    telemetriaFrame.rowconfigure(0, weight=1)
+    telemetriaFrame.rowconfigure(1, weight=1)
+    telemetriaFrame.columnconfigure(0, weight=1)
+    telemetriaFrame.columnconfigure(1, weight=1)
+    telemetriaFrame.columnconfigure(2, weight=1)
+    telemetriaFrame.columnconfigure(3, weight=1)
+
+    showQRBtn = tk.Button(superviseFrame, text="Mostrar código QR de mobile web APP", bg="dark orange", command=showQR)
+    showQRBtn.grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+    startBtn = tk.Button(superviseFrame, text="Empezar la carrera", bg="dark orange", command=start)
+    startBtn.grid(row=4, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
+
 
     #################### Frame para el mapa, en la columna de la derecha #####################
     mapaFrame = tk.LabelFrame(ventana, text='Mapa')
@@ -1081,7 +1105,7 @@ def crear_ventana():
 
     # ahora cargamos las imagenes de los iconos que vamos a usar
 
-    # icono para marcadores
+    # icono para representar los drones en el mapa
     im = Image.open("images/red.png")
     im_resized = im.resize((20, 20), Image.LANCZOS)
     red = ImageTk.PhotoImage(im_resized)
@@ -1102,26 +1126,25 @@ def crear_ventana():
 
     dronPictures = [red, blue, green, yellow]
 
-    # nos conectamos al broker para recibir las ordenes de los que vuelan con la web app
-    client = mqtt.Client("multiPlayerDash", transport="websockets")
+    # iconos para representar a los drones que han aterrizado porque los han pillado
 
-    broker_address = "dronseetac.upc.edu"
-    broker_port = 8000
+    im = Image.open("images/red_line.png")
+    im_resized = im.resize((20, 20), Image.LANCZOS)
+    red_line = ImageTk.PhotoImage(im_resized)
+    im = Image.open("images/blue_line.png")
+    im_resized = im.resize((20, 20), Image.LANCZOS)
+    blue_line = ImageTk.PhotoImage(im_resized)
+    im = Image.open("images/green_line.png")
+    im_resized = im.resize((20, 20), Image.LANCZOS)
+    green_line = ImageTk.PhotoImage(im_resized)
 
-    client.username_pw_set(
-        'dronsEETAC', 'mimara1456.'
-    )
-    print('me voy a conectar')
-    client.connect(broker_address, broker_port)
-    print('Connected to dronseetac.upc.edu:8000')
+    im = Image.open("images/yellow_line.png")
+    im_resized = im.resize((20, 20), Image.LANCZOS)
+    yellow_line = ImageTk.PhotoImage(im_resized)
 
-    client.on_message = on_message
-    client.on_connect = on_connect
-    client.connect(broker_address, broker_port)
+    dronPictures_lines = [red_line, blue_line, green_line, yellow_line]
 
-    # me subscribo a cualquier mensaje  que venga del autopilot service
-    client.subscribe('mobileApp/multiPlayerDash/#')
-    client.loop_start()
+
 
     return ventana
 

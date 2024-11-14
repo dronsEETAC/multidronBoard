@@ -25,6 +25,7 @@ from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from datetime import datetime
 from ParameterManager import ParameterManager
+from AutopilotControllerClass import AutopilotController
 '''
 Ejemplo de estructura de datos que representa un escenario para carreras de tipo check.
 Los escenarios base son: 1, 2H, 2V, 3H, 3V, 4H, 4V, 4M
@@ -1258,6 +1259,7 @@ def selectBtnClick ():
 def selectScenarios (num):
     global scenarios, current, polys
     global numPlayers
+    global client, swarm
     numPlayers = num
     # cargamos en una lista las imágenes de todos los multi escenarios disponibles
     # para el número de jugadores indicado
@@ -1285,6 +1287,13 @@ def selectScenarios (num):
     else:
         messagebox.showinfo("showinfo",
                             "No hay escenarios para elegir")
+
+
+    additionalEvents = [
+        {'event': 'drop', 'method':check_drop},
+    ]
+    autopilotService = AutopilotController (numPlayers, numPlayers, additionalEvents)
+    client, swarm = autopilotService.start()
 
 # mostrar anterior
 def showPrev ():
@@ -1766,15 +1775,13 @@ def connect ():
         modos = []
         points = []
 
-        # creamos el enjambre
-        swarm = []
         dronIcons = [None, None, None, None]
         textColor = 'white'
         for i in range(0, numPlayers):
             # identificamos el dron
-            dron = Dron(i)
+            dron = swarm[i]
             dron.changeNavSpeed(1) # que vuele a 1 m/s
-            swarm.append(dron)
+
             # nos conectamos
             print ('voy a onectar ', i, connectionStrings[i], baud)
             dron.connect(connectionStrings[i], baud)
@@ -2001,18 +2008,18 @@ def showQR():
     QRWindow.mainloop()
 
 
-def on_connect(client, userdata, flags, rc):
+'''def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("connected OK Returned code=", rc)
     else:
-        print("Bad connection Returned code=", rc)
+        print("Bad connection Returned code=", rc)'''
 
-def publish_event (id, event):
+'''def publish_event (id, event):
     # al ser drones idenificados dronLink_old nos pasa siempre en primer lugar el identificador
     # del dron que ha hecho la operación
     # lo necesito para identificar qué jugador debe hacer caso a la respuesta
     global client
-    client.publish('multiPlayerDash/mobileApp/'+event+'/'+str(id))
+    client.publish('multiPlayerDash/mobileApp/'+event+'/'+str(id))'''
 
 def check_drop (id):
     global targetIcon, nextTarget, map_widget, diana, white, black
@@ -2038,7 +2045,7 @@ def check_drop (id):
          targeta = targets[id][nextTarget[id]]
          targetIcon[id]=map_widget.set_marker(targeta[0], targeta[1], icon=diana, icon_anchor="center")
 
-# aqui recibimos las publicaciones que hacen las web apps desde las que están jugando
+'''# aqui recibimos las publicaciones que hacen las web apps desde las que están jugando
 def on_message(client, userdata, message):
     global targetIcon, nexttarget, map_widget
     # el formato del topic siempre será:
@@ -2096,7 +2103,7 @@ def on_message(client, userdata, message):
         check_drop(id)
 
 
-
+'''
 def crear_ventana():
 
     global map_widget
@@ -2457,7 +2464,7 @@ def crear_ventana():
     # para dibujar los rastros
     dronLittlePictures = [littleRed, littleBlue, littleGreen, littleYellow]
 
-    # nos conectamos al broker para recibir las ordenes de los que vuelan con la web app
+    '''# nos conectamos al broker para recibir las ordenes de los que vuelan con la web app
     clientName = "multiPlayerDash" + str(random.randint(1000, 9000))
     client = mqtt.Client(clientName,transport="websockets")
 
@@ -2480,7 +2487,7 @@ def crear_ventana():
     client.subscribe('mobileApp/multiPlayerDash/#')
     client.loop_start()
     # para garantizar acceso excluyente a las estructuras para pintar el rastro
-    lock = threading.Lock()
+    lock = threading.Lock()'''
 
     return ventana
 

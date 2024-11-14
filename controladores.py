@@ -23,6 +23,7 @@ from geographiclib.geodesic import Geodesic
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 from ParameterManager import ParameterManager
+from AutopilotControllerClass import AutopilotController
 '''
 Ejemplo de estructura de datos que representa un escenario para el juego de controladores.
 El campo 'limits' marca el geofence de inclusión.
@@ -559,7 +560,8 @@ def selectBtnClick ():
 # una vez elegido el numero de jugadores mostramos los escenarios que hay para ese número de jugadores
 def selectScenarios (num):
     global scenarios, current
-    global numPlayers
+    global numPlayers, autopilotService
+    global client, dron
     numPlayers = num
 
     # cargamos en una lista las imágenes de todos los escenarios disponibles
@@ -588,6 +590,8 @@ def selectScenarios (num):
     else:
         messagebox.showinfo("showinfo",
                             "No hay escenarios para elegir")
+
+
 
 # mostrar anterior
 def showPrev ():
@@ -824,8 +828,6 @@ def connect ():
 
 
     if not connected:
-        dron = Dron(0)
-
         if connectOption.get () == 'Simulation':
             # nos al simulador
             connectionString = "tcp:127.0.0.1:5763"
@@ -837,6 +839,7 @@ def connect ():
             connectionString = comPorts
             baud = 57600
 
+        dron = Dron (0)
         dron.connect(connectionString, baud)
         dron.changeNavSpeed(1)
         dron.send_telemetry_info(processTelemetryInfo)
@@ -948,7 +951,6 @@ def publish_event (id, event):
         # DE MOMENTO NO LO HAGO PORQUE HAY QUE TOCAR LA WEB APP
         client.publish('multiPlayerDash/mobileApp/flyingForAll')
 
-
 # aqui recibimos las publicaciones que hacen las web apps desde las que están jugando
 def on_message(client, userdata, message):
     # el formato del topic siempre será:
@@ -1003,7 +1005,8 @@ def on_message(client, userdata, message):
                 # operación no bloqueante. Cuando acabe publicará el evento correspondiente
                 dron.RTL(blocking=False, callback=publish_event, params='atHome')
 
-
+def start ():
+    running = True
 
 
 def crear_ventana():
@@ -1024,6 +1027,7 @@ def crear_ventana():
     global QRimg
     global controlesFrame, telemetriaFrame
     global altitudLab, modoLab
+
 
 
     playersCount = 0
@@ -1245,12 +1249,16 @@ def crear_ventana():
     telemetriaFrame.rowconfigure(0, weight=1)
     telemetriaFrame.rowconfigure(1, weight=1)
     telemetriaFrame.columnconfigure(0, weight=1)
+
+
+
     # Aqui guardaremos los labels para mostrar los datos de telemetría
     altitudLab = None
     modoLab = None
 
     showQRBtn = tk.Button(superviseFrame, text="Mostrar código QR de mobile web APP", bg="dark orange", command=showQR)
     showQRBtn.grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
 
     #################### Frame para el mapa, en la columna de la derecha #####################
     mapaFrame = tk.LabelFrame(ventana, text='Mapa')

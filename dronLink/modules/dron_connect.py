@@ -12,6 +12,7 @@ ha pasado mucho tiempo desde que se armó sin despegar'''
 def _handle_heartbeat(self, msg):
     if msg.base_mode == 89 and self.state == 'armed':
         self.state = 'connected'
+        print ('Ne acabo de desarmar')
     mode = mavutil.mode_string_v10(msg)
     if not 'Mode(0x000000' in str(mode):
             self.flightMode = mode
