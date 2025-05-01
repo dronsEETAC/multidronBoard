@@ -49,7 +49,7 @@ def RTL (self, blocking=True, callback=None, params = None):
         return False
 
 def Land (self, blocking=True, callback=None, params = None):
-    if self.state == 'flying':
+    if self.state == 'flying' or self.state == 'returning':
         self.state = 'landing'
         if blocking:
             self._goDown('LAND')

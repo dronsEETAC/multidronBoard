@@ -7,8 +7,9 @@ connection_string = 'tcp:127.0.0.1:5763'
 baud = 115200
 dron.connect(connection_string, baud)
 print ('conectado')
+time.sleep (5)
+
 dron.arm()
-time.sleep (50)
 print ('ya he armado')
 dron.takeOff (25)
 print ('ya he alcanzado al altitud indicada')
