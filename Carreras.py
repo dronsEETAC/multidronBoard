@@ -48,6 +48,7 @@ def processTelemetryInfo (id, telemetry_info):
     lon = telemetry_info['lon']
     alt = telemetry_info['alt']
     modo = telemetry_info['flightMode']
+    estado = telemetry_info['state']
 
 
     # si es el primer paquete de este dron entonces ponemos en el mapa el icono de ese dron
@@ -58,7 +59,10 @@ def processTelemetryInfo (id, telemetry_info):
     else:
         dronIcons[id].set_position(lat,lon)
     # actrualizo la altitud y el modo de vuelo
-    altitudes[id]['text'] = str(round(alt, 2))
+    if estado == 'armed':
+        altitudes[id]['text'] = 'Armado'
+    else:
+        altitudes[id]['text'] = str(round(alt, 2))
     modos[id]['text'] = modo
 
     # si estamos ya en carrera y este dron no ha sido pillado aún...
@@ -86,6 +90,7 @@ def processTelemetryInfo (id, telemetry_info):
                 if id!= j and myZone[j] and  myZone[j] != -1:
                     # veamos si el dron id ha atrapado al dron j
                     if (myZone[id] + 1) % len(zones) == myZone[j]:
+                        print ('ATRAPADOOOOOOOOOOOOOOOOOOOOO')
                         # si que lo ha atrapado
                         # me guardo el modo de vuelo para recuperarlo luego
                         # (será GUIDED si volamos con el movil o LOITER si volamos con la emisora)
@@ -718,11 +723,65 @@ def start ():
     running = True
 
 
+def joysticId (id):
+    # esta es la función que quiero que se ejecute cuando se pulse el botón de identificación
+    # simplemente cambio el color del texto que hay en el modo de vuelo correspondiente al
+    # dron controlado por el joystic
+
+    if modos[id]['fg'] == 'black':
+        modos[id]['fg'] = colors[id]
+    else:
+        modos[id]['fg'] = 'black'
+
+
+def startJoystic() :
+    global swarm
+    import pygame
+    global joysticBtn
+    from Joystic import Joystic
+
+
+    if 'orange' in joysticBtn['bg']:
+
+        # Inicializar pygame y el módulo de joystick
+        pygame.init()
+        pygame.joystick.init()
+
+        # Verificar si hay suficientes joysticks conectados
+        if pygame.joystick.get_count() != len (swarm):
+            messagebox.showerror(title="Error", message="No hay suficientes Joysticks")
+        else:
+            joystics = []
+            # cambio el parametro que le dice al autopiloto que no exija que el throttle
+            # este a 0 para armar (porque eso no va a pasar con el joystic)
+            # también cambio la velocidad de navegación en Loiter a 5 m/s
+            params = [{'ID': "PILOT_THR_BHV", 'Value': 1},{'ID': "LOIT_SPEED", 'Value': 500}, ]
+            for i in range (len(swarm)):
+                # cambio el parámetro
+                swarm[i].setParams(params)
+                # creo el joystic, indicandole el numero (que será el id), el dron
+                # que va a controlar y la función callback que quiero que se ejecute
+                # cuando se pulse el boton de identificación
+                joystics.append (Joystic (i, swarm[i], joysticId))
+            joysticBtn['bg'] = 'green'
+            joysticBtn['fg'] = 'white'
+    else:
+        # restauro el valor del parámetro que cambié
+        throttle_behaviour = [{'ID': "PILOT_THR_BHV", 'Value': 0}]
+        for i in range (len(swarm)):
+            swarm[i].setParams(throttle_behaviour)
+        joysticBtn['bg'] = 'dark orange'
+        joysticBtn['fg'] = 'black'
+
+
+
+
 
 def crear_ventana():
 
     global map_widget
     global createBtn,selectBtn, superviseBtn, createFrame, name, selectFrame, scene, scenePic,scenarios, current
+    global joysticBtn
     global superviseFrame
     global prevBtn, nextBtn, sendBtn, connectBtn
     global circuitCanvas
@@ -945,8 +1004,11 @@ def crear_ventana():
     showQRBtn = tk.Button(superviseFrame, text="Mostrar código QR de mobile web APP", bg="dark orange", command=showQR)
     showQRBtn.grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
+    joysticBtn = tk.Button(superviseFrame, text="Modo Joystic", bg="dark orange", command=startJoystic)
+    joysticBtn.grid(row=4, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+
     startBtn = tk.Button(superviseFrame, text="Empezar la carrera", bg="dark orange", command=start)
-    startBtn.grid(row=4, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    startBtn.grid(row=5, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
 
 

@@ -124,6 +124,7 @@ class MessageHandler:
                                 sendMessage = waiting['condition'](msg, waiting['params'])
                             else:
                                 sendMessage = waiting['condition'](msg)
+
                             # hemos encontrado a alguien que está esperando este mensaje en la cola que nos dió
                             # le pasamos el mensaje
                             if sendMessage:

@@ -113,6 +113,10 @@ def _changeHeading (self, absoluteDegrees, callback=None, params = None):
         1, # param 3, direction -1 ccw, 1 cw
         0, # param 4, relative offset 1, absolute angle 0
         0, 0, 0, 0) # not used
+    if absoluteDegrees == 0:
+        absoluteDegrees = 0.001
+        # esto lo cambio porque si a wait_for_message le paso un 0 como parametro
+        # interpretara que no hay parámetros (valor False)
 
     # espero hasta que haya alcanzado la orientación indicada
     msg = self.message_handler.wait_for_message(
