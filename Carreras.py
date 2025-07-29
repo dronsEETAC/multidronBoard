@@ -20,6 +20,8 @@ from shapely.geometry.polygon import Polygon
 import paho.mqtt.client as mqtt
 from ParameterManager import ParameterManager
 from AutopilotControllerClass import AutopilotController
+from geopy.distance import distance
+
 
 '''
 El formato en que se guarda un circuito es simplemente una lista de puntos que definen las zonas
@@ -41,23 +43,55 @@ def runAgain (id, params):
     dronIcons[j] = map_widget.set_marker(0, 0,
                                          icon=dronPictures_lines[j], icon_anchor="center")
 
+
+def draw_oriented_line(map_widget, id, center_lat, center_lon, bearing_deg, length_m):
+    # Calcula el punto al que debe ir la linea que empieza en las coordenadas
+    # dadas, tiene la longitud indicada y el heading indicado
+    length_km = length_m / 1000  # Convertir metros a kilómetros
+
+    origin = (center_lat, center_lon)
+
+    # Función para obtener destino dado un rumbo y distancia
+    def destination_point(lat, lon, bearing_deg, distance_km):
+        origin = distance(kilometers=distance_km).destination((lat, lon), bearing_deg)
+        return origin.latitude, origin.longitude
+
+    dest = destination_point(center_lat, center_lon, bearing_deg,length_km)
+
+    # Dibujar la línea
+    return map_widget.set_path(
+        [origin, dest],
+        color= colors[id],
+        width=2  # grosor en píxeles
+    )
+
 def processTelemetryInfo (id, telemetry_info):
     global dronIcons, myZone, myZoneWidget
+    global lat, lon, heading
     # recupero la posición en la que está el dron
     lat = telemetry_info['lat']
     lon = telemetry_info['lon']
     alt = telemetry_info['alt']
     modo = telemetry_info['flightMode']
     estado = telemetry_info['state']
+    heading = telemetry_info ['heading']
 
 
     # si es el primer paquete de este dron entonces ponemos en el mapa el icono de ese dron
+    # y dibujamos una linea que señala el heading
     if not dronIcons[id]:
         dronIcons[id] = map_widget.set_marker(lat, lon,
                         icon=dronPictures[id],icon_anchor="center")
+        linesHeading[id] = draw_oriented_line(map_widget, id, lat, lon, heading, 10)
+
+
     # si no es el primer paquete entonces muevo el icono a la nueva posición
+    # y redibujo la linea de heading
     else:
         dronIcons[id].set_position(lat,lon)
+        linesHeading[id].delete()
+        linesHeading[id] = draw_oriented_line(map_widget, id, lat, lon, heading, 20)
+
     # actrualizo la altitud y el modo de vuelo
     if estado == 'armed':
         altitudes[id]['text'] = 'Armado'
@@ -588,7 +622,7 @@ def sendCircuit ():
 
 def connect ():
     global swarm
-    global connected, dron, dronIcons
+    global connected, dron, dronIcons, linesHeading
     global altitudes, modos, colors
     global telemetriaFrame, controlesFrame
 
@@ -614,6 +648,7 @@ def connect ():
         modos = []
 
         dronIcons = [None, None, None, None]
+        linesHeading = [None, None, None, None]
 
         textColor = 'white'
 
@@ -724,14 +759,18 @@ def start ():
 
 
 def joysticId (id):
+    global colors
     # esta es la función que quiero que se ejecute cuando se pulse el botón de identificación
     # simplemente cambio el color del texto que hay en el modo de vuelo correspondiente al
     # dron controlado por el joystic
 
-    if modos[id]['fg'] == 'black':
-        modos[id]['fg'] = colors[id]
-    else:
+    if modos[id]['fg'] == colors[id]:
         modos[id]['fg'] = 'black'
+    else:
+        modos[id]['fg'] = colors[id]
+
+
+
 
 
 def startJoystic() :

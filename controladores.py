@@ -831,6 +831,7 @@ def connect ():
         if connectOption.get () == 'Simulation':
             # nos al simulador
             connectionString = "tcp:127.0.0.1:5763"
+            #connectionString = "udp:147.83.249.79:14550"
             baud = 115200
 
         else:
