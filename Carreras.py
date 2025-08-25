@@ -777,8 +777,7 @@ def startJoystic() :
     global swarm
     import pygame
     global joysticBtn
-    from Joystic import Joystic
-
+    from JoystickReal import Joystick
 
     if 'orange' in joysticBtn['bg']:
 
@@ -801,7 +800,7 @@ def startJoystic() :
                 # creo el joystic, indicandole el numero (que será el id), el dron
                 # que va a controlar y la función callback que quiero que se ejecute
                 # cuando se pulse el boton de identificación
-                joystics.append (Joystic (i, swarm[i], joysticId))
+                joystics.append (Joystick ( swarm[i], joysticId, i))
             joysticBtn['bg'] = 'green'
             joysticBtn['fg'] = 'white'
     else:

@@ -22,7 +22,7 @@ import geopy.distance
 from geographiclib.geodesic import Geodesic
 from ParameterManager import ParameterManager
 from AutopilotControllerClass import AutopilotController
-
+from JoystickReal import Joystick
 '''
 Ejemplo de estructura de datos que representa un escenario para múltiples jugadores (multi escenario).
 Los jugadores son el red, blue y green (el cuarto sería el yellow).
@@ -803,12 +803,41 @@ def selectNumPlayers (num):
                                 command = lambda: createPlayer('yellow'))
         yellowPlayerBtn.grid(row=5, column=0,columnspan = 4,  padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
+def identificaJoystick (id):
+    print ('soy el joystick: ', id)
+
+def ActivaJoystick (id):
+    global swarm, ModoJoystickBtn
+    print ("Modo Joystick: ", id)
+    # en modo joystick (y también en modo emisora) limito la velocidad de vuelo a 100 cm/s
+    parameters = [
+        {'ID': "LOIT_SPEED", 'Value': 100}
+    ]
+    print ("Swarm: ", swarm)
+    swarm[id].setParams(parameters)
+    print ('Ya he puesto el primer parametro')
+    joystick = Joystick(swarm[id], identificaJoystick, id)
+    ModoJoystickBtn[id]['bg'] = 'green'
+    ModoJoystickBtn[id]['fg'] = 'white'
+
+def ModoEmisora (id):
+    global swarm, ModoEmisoraBtn
+    # en modo emisora limito la velocidad de vuelo a 100 cm/s
+    parameters = [
+        {'ID': "LOIT_SPEED", 'Value': 100}
+    ]
+    swarm[id].setParams(parameters)
+    ModoEmisoraBtn[id]['bg'] = 'green'
+    ModoEmisoraBtn[id]['fg'] = 'white'
+
+
 # me contecto a los drones del enjambre
 def connect ():
     global swarm
     global connected, dron, dronIcons
     global altitudes, modos
     global telemetriaFrame, controlesFrama
+    global ModoJoystickBtn, ModoEmisoraBtn, MinAltWarningBtn
 
     if not connected:
 
@@ -830,6 +859,10 @@ def connect ():
         colors = ['red', 'blue', 'green', 'yellow']
         altitudes = []
         modos = []
+        ModoJoystickBtn = [None, None, None, None]
+        ModoEmisoraBtn = [None, None, None, None]
+
+        MinAltWarningBtn = [None, None, None, None]
 
         dronIcons = [None, None, None, None]
 
@@ -838,11 +871,12 @@ def connect ():
         for i in range(0, numPlayers):
             # identificamos el dron
             dron = swarm[i]
-            dron.changeNavSpeed(1) # que vuele a 1 m/s
+
             # nos conectamos
             print ('voy a onectar ', i, connectionStrings[i], baud)
             dron.connect(connectionStrings[i], baud)
             print ('conectado')
+            dron.changeNavSpeed(1)  # que vuele a 1 m/s
             if i == 3:
                 textColor = 'black'
             # colocamos los botones para aterrizar y cambiar de modo, cada uno con el color que toca
@@ -855,6 +889,16 @@ def connect ():
             tk.Button(controlesFrame, bg=colors[i], fg=textColor, text='Modo break',
                       command=lambda d=swarm[i]: d.setFlightMode('BRAKE')) \
                 .grid(row=2, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            ModoJoystickBtn[i]= tk.Button(controlesFrame, bg=colors[i], fg=textColor, text='Modo Joystick',
+                                        command=lambda: ActivaJoystick (i))
+            ModoJoystickBtn[i].grid(row=3, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+            ModoEmisoraBtn[i] = tk.Button(controlesFrame, bg=colors[i], fg=textColor, text='Modo Emisora',
+                      command=lambda: ModoEmisora(i))
+            ModoEmisoraBtn[i].grid(row=4, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+
+            MinAltWarningBtn[i] = tk.Button(controlesFrame, bg='white', fg=textColor, text='')
+            MinAltWarningBtn[i].grid(row=5, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
+
             # colocamos las labels para mostrar las alturas de los drones
             altitudes.append(tk.Label(telemetriaFrame, text='', borderwidth=1, relief="solid"))
             altitudes[-1].grid(row=0, column=i, padx=2, pady=2, sticky=tk.N + tk.E + tk.W)
@@ -960,97 +1004,22 @@ def showQR():
 
 
 
-'''
+def MinAltBreak (id):
 
-
-def on_connect(client, userdata, flags, rc):
-    if rc == 0:
-        print("connected OK Returned code=", rc)
+    if MinAltWarningBtn [id]['text'] == 'Altura mínima':
+        MinAltWarningBtn[id]['text'] = ''
     else:
-        print("Bad connection Returned code=", rc)
-
-def publish_event (id, event):
-    # al ser drones idenificados dronLink_old nos pasa siempre en primer lugar el identificador
-    # del dron que ha hecho la operación
-    # lo necesito para identificar qué jugador debe hacer caso a la respuesta
-    global client
-    client.publish('multiPlayerDash/mobileApp/'+event+'/'+str(id))
-
-# aqui recibimos las publicaciones que hacen las web apps desde las que están jugando
-def on_message(client, userdata, message):
-    # el formato del topic siempre será:
-    # multiPlayerDash/mobileApp/COMANDO/NUMERO
-    # el número normalmente será el número del jugador (entre el 0 y el 3)
-    # excepto en el caso de la petición de conexión
-    global playersCount
-    parts = message.topic.split ('/')
-    command = parts[2]
-    if command == 'connect':
-        # el cuarto trozo del topic es un número aleatorio que debo incluir en la respuesta
-        # para que ésta sea tenida en cuenta solo por el jugador que ha hecho la petición
-        randomId = parts[3]
-        if playersCount == numPlayers:
-            # ya no hay sitio para más jugadores
-            client.publish('multiPlayerDash/mobileApp/notAccepted/'+randomId)
-        else:
-            # aceptamos y le asignamos el identificador del siguiente jugador
-            client.publish('multiPlayerDash/mobileApp/accepted/'+randomId, playersCount)
-            print ('se ha conectado el ', playersCount)
-            playersCount = playersCount+1
-
-    if command == 'arm_takeOff':
-        # en este comando y en los siguientes, el último trozo del topic identifica al jugador que hace la petición
-        id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'connected':
-            dron.arm()
-            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
-            dron.takeOff(5, blocking=False, callback=publish_event, params='flying')
-
-    if command == 'go':
-        id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'flying':
-            direction = message.payload.decode("utf-8")
-            dron.go(direction)
-
-    if command == 'Land':
-        id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'flying':
-            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
-            dron.Land(blocking=False, callback=publish_event, params='landed')
-
-    if command == 'RTL':
-        id = int (parts[3])
-        dron = swarm[id]
-        if dron.state == 'flying':
-            # operación no bloqueante. Cuando acabe publicará el evento correspondiente
-            dron.RTL(blocking=False, callback=publish_event, params='atHome')
-
-    if command == 'startDrawing':
-        id = int (parts[3])
-        drawingAction [id] = 'startDrawing'
-
-    if command == 'stopDrawing':
-        id = int (parts[3])
-        drawingAction [id] = 'nothing'
-
-    if command == 'startRemovingDrawing':
-        id = int (parts[3])
-        drawingAction[id] = 'remove'
-
-    if command == 'stopRemovingDrawing':
-        id = int (parts[3])
-        drawingAction[id] = 'nothing'
-    if command == 'removeAll':
-        id = int(parts[3])
-        for item in traces[id]:
-            if  item['marker'] != None:
-                item['marker'].delete()
-        traces[id] = []'''
+        MinAltWarningBtn[id]['text'] = 'Altura mínima'
+        MinAltWarningBtn[id]['fg'] = 'red'
 
 
+def SetMinAltCheck ():
+    global swarm
+    for dron in swarm:
+        if dron:
+            dron.CheckMinAlt (aviso = MinAltBreak)
+    setMinAltCheckBtn['bg'] = 'green'
+    setMinAltCheckBtn['fg'] = 'white'
 
 def crear_ventana():
 
@@ -1072,6 +1041,7 @@ def crear_ventana():
     global colors
     global lock
     global telemetriaFrame, controlesFrame
+    global setMinAltCheckBtn
     playersCount = 0
 
     connected = False
@@ -1282,6 +1252,7 @@ def crear_ventana():
     superviseFrame.rowconfigure(1, weight=1)
     superviseFrame.rowconfigure(2, weight=1)
     superviseFrame.rowconfigure(3, weight=1)
+    superviseFrame.rowconfigure(4, weight=1)
 
 
     superviseFrame.columnconfigure(0, weight=1)
@@ -1299,6 +1270,9 @@ def crear_ventana():
     controlesFrame.rowconfigure(0, weight=1)
     controlesFrame.rowconfigure(1, weight=1)
     controlesFrame.rowconfigure(3, weight=1)
+    controlesFrame.rowconfigure(4, weight=1)
+    controlesFrame.rowconfigure(5, weight=1)
+    controlesFrame.rowconfigure(6, weight=1)
     controlesFrame.columnconfigure(0, weight=1)
     controlesFrame.columnconfigure(1, weight=1)
     controlesFrame.columnconfigure(2, weight=1)
@@ -1306,7 +1280,7 @@ def crear_ventana():
 
     # debajo de este label colocaremos las alturas en las que están los drones
     # las colocaremos cuando sepamos cuántos drones tenemos en el enjambre
-    telemetriaFrame = tk.LabelFrame(superviseFrame, text='Telemetría (altitud y modo de vuelo')
+    telemetriaFrame = tk.LabelFrame(superviseFrame, text='Telemetría (altitud y modo de vuelo)')
     telemetriaFrame.grid(row=2, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
     telemetriaFrame.rowconfigure(0, weight=1)
     telemetriaFrame.rowconfigure(1, weight=1)
@@ -1317,6 +1291,9 @@ def crear_ventana():
 
     showQRBtn = tk.Button(superviseFrame, text="Mostrar código QR de mobile web APP", bg="dark orange", command=showQR)
     showQRBtn.grid(row=3, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
+    setMinAltCheckBtn = tk.Button(superviseFrame, text="Establecer control de altura mínima (2 metros)",
+                                  bg="dark orange", command=SetMinAltCheck)
+    setMinAltCheckBtn.grid(row=4, column=0, columnspan=4, padx=5, pady=5, sticky=tk.N + tk.E + tk.W)
 
     #################### Frame para el mapa, en la columna de la derecha #####################
     mapaFrame = tk.LabelFrame(ventana, text='Mapa')

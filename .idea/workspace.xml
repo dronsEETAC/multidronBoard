@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="c4f40120-b127-471d-9dae-e12be350cd10" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/multidronBoard.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/multidronBoard.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Carreras.py" beforeDir="false" afterPath="$PROJECT_DIR$/Carreras.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Joystic.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/Dron.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/Dron.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/docs/tabla_dronLink.docx" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/docs/tabla_dronLink.docx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/docs/tabla_dronLink.pdf" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/docs/tabla_dronLink.pdf" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/modules/dron_RC_override.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/modules/dron_RC_override.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/modules/dron_RTL_Land.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/modules/dron_RTL_Land.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/modules/dron_connect.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/modules/dron_connect.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/modules/dron_local_telemetry.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/modules/dron_local_telemetry.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/modules/dron_mission.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/modules/dron_mission.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/modules/dron_move.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/modules/dron_move.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/modules/dron_nav.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/modules/dron_nav.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/modules/message_handler.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/modules/message_handler.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/tests/test_libreria.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/tests/test_libreria.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/tests/test_mission.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/tests/test_mission.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/tests/test_mov.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/tests/test_mov.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/tests/test_nav.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/tests/test_nav.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/tests/test_parameters.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/tests/test_parameters.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dronLink/tests/test_telemetry_info.py" beforeDir="false" afterPath="$PROJECT_DIR$/dronLink/tests/test_telemetry_info.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/multidronBoardConMobile.py" beforeDir="false" afterPath="$PROJECT_DIR$/multidronBoardConMobile.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 0
+}</component>
+  <component name="ProjectId" id="30e07LOeXSx3279VMne4YQsFhmY" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.main.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "C:/Users/Miguel/Documents/Miguel/DEE/multidronBoard",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  }
+}]]></component>
+  <component name="RunManager">
+    <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="multidronBoard" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/main.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.main" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-python-sdk-4c141bd692a7-e2d783800521-com.jetbrains.pycharm.community.sharedIndexes.bundled-PC-251.26927.90" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="c4f40120-b127-471d-9dae-e12be350cd10" name="Changes" comment="" />
+      <created>1753972563078</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1753972563078</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/multidronBoardConMobile.py</url>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/multidronBoardConMobile.py</url>
+          <line>848</line>
+          <option name="timeStamp" value="4" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>
